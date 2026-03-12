@@ -1,11 +1,25 @@
 from pydantic import BaseModel
 from .schema import SyntheticData, SyntheticDataList
 import os
+import re
 import time
 import asyncio
 import logging
 from deepeval.metrics.utils import trimAndLoadJson, initialize_model
 from deepeval.models import DeepEvalBaseLLM
+
+
+def _strip_markdown_fences(text: str) -> str:
+    """Strip markdown code fences that some models (e.g. HuggingFace) wrap JSON in."""
+    if text is None:
+        return text
+    # Remove ```json ... ``` or ``` ... ``` blocks, keeping only the inner content
+    text = text.strip()
+    match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    # If no fences found, return as-is for trimAndLoadJson to handle
+    return text
 
 MAX_RETRIES = os.getenv("DEEPTEAM_MAX_RETRIES", 3)
 
@@ -43,7 +57,7 @@ def generate(
                         raise ValueError("Model returned None.")
 
                     if isinstance(res, str):
-                        data = trimAndLoadJson(res)
+                        data = trimAndLoadJson(_strip_markdown_fences(res))
                         return schema(**data)
                     else:
                         return res
@@ -52,7 +66,7 @@ def generate(
                     if res is None:
                         raise ValueError("Model returned None.")
 
-                    data = trimAndLoadJson(res)
+                    data = trimAndLoadJson(_strip_markdown_fences(res))
                     if schema == SyntheticDataList:
                         data_list = [
                             SyntheticData(**item) for item in data["data"]
@@ -108,7 +122,7 @@ async def a_generate(
                         raise ValueError("Model returned None.")
 
                     if isinstance(res, str):
-                        data = trimAndLoadJson(res)
+                        data = trimAndLoadJson(_strip_markdown_fences(res))
                         return schema(**data)
                     else:
                         return res
@@ -117,7 +131,7 @@ async def a_generate(
                     if res is None:
                         raise ValueError("Model returned None.")
 
-                    data = trimAndLoadJson(res)
+                    data = trimAndLoadJson(_strip_markdown_fences(res))
                     if schema == SyntheticDataList:
                         data_list = [
                             SyntheticData(**item) for item in data["data"]
