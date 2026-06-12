@@ -21,12 +21,13 @@ AgentIdentityAbuseLiteral = Literal[
     "agent_impersonation",
     "identity_inheritance",
     "cross_agent_trust_abuse",
+    "persistent_identity_poisoning",
 ]
 
 
 class AgentIdentityAbuse(BaseVulnerability):
     name: str = "Agent Identity & Trust Abuse"
-    description = "Misuse of delegated trust, agent identity claims, or implicit authority assumptions to influence AI or agent behavior."
+    description = "Misuse of delegated trust, agent identity claims, inherited authority, implicit cross-agent trust, or persistent (memory-based) identity poisoning to influence AI or agent behavior."
     ALLOWED_TYPES = [type.value for type in AgentIdentityAbuseType]
 
     def __init__(
