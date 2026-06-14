@@ -1,7 +1,7 @@
 import pytest
 from deepteam.frameworks import OWASP_ASI_2026
 from deepteam.red_teamer.risk_assessment import RiskAssessment
-from deepteam.vulnerabilities import BaseVulnerability
+from deepteam.vulnerabilities import AutonomousAgentDrift, BaseVulnerability
 from deepteam.attacks import BaseAttack
 from deepteam.frameworks.owasp_top_10_agentic.risk_categories import (
     OWASP_ASI_CATEGORIES,
@@ -134,6 +134,23 @@ class TestOWASP:
         ]
         for attack in expected_attacks:
             assert attack in attack_names, f"Expected attack {attack} not found"
+
+    def test_owasp_asi_10_includes_objective_persistence(self):
+        """Test that ASI10 covers all autonomous-agent-drift subtypes."""
+        asi_10 = next(
+            category
+            for category in OWASP_ASI_CATEGORIES
+            if category.name == "ASI_10"
+        )
+        drift = next(
+            vulnerability
+            for vulnerability in asi_10.vulnerabilities
+            if isinstance(vulnerability, AutonomousAgentDrift)
+        )
+
+        assert "objective_persistence" in [
+            drift_type.value for drift_type in drift.types
+        ]
 
     def test_owasp_asi_2026_attack_weights_defined(self):
         """Test that all attacks have a valid weight."""

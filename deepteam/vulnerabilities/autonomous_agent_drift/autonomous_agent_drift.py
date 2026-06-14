@@ -18,19 +18,25 @@ from deepteam.test_case import RTTestCase
 from deepteam.attacks.attack_simulator.schema import SyntheticDataList
 from deepteam.risks import getRiskCategory
 from .template import AutonomousAgentDriftTemplate
+from .quality import (
+    candidate_count,
+    normalize_simulated_attacks,
+    select_quality_attacks,
+)
 
 AutonomousAgentDriftLiteral = Literal[
     "goal_drift",
     "reward_hacking",
     "agent_collusion",
     "runaway_autonomy",
+    "objective_persistence",
 ]
 
 
 class AutonomousAgentDrift(BaseVulnerability):
     name: str = "Autonomous Agent Drift"
     description: str = (
-        "Deviation of autonomous agents from intended goals or constraints without explicit attacker prompting, including goal drift, reward hacking, collusion, and runaway autonomy."
+        "Deviation of autonomous agents from intended goals or constraints without explicit attacker prompting, including goal drift, reward hacking, collusion, runaway autonomy, and cross-session objective persistence."
     )
     ALLOWED_TYPES = [type.value for type in AutonomousAgentDriftType]
 
@@ -179,50 +185,32 @@ class AutonomousAgentDrift(BaseVulnerability):
         purpose: Optional[str] = None,
         attacks_per_vulnerability_type: int = 1,
     ) -> List[RTTestCase]:
+        candidate_total = candidate_count(attacks_per_vulnerability_type)
 
         self.simulator_model, self.using_native_model = initialize_model(
             self.simulator_model
         )
 
-        self.purpose = purpose
-
-        templates = dict()
+        self.purpose = self._resolve_purpose(purpose)
         simulated_test_cases: List[RTTestCase] = []
 
-        for type in self.types:
-            templates[type] = templates.get(type, [])
-            templates[type].append(
-                AutonomousAgentDriftTemplate.generate_baseline_attacks(
-                    type, attacks_per_vulnerability_type, self.purpose
-                )
+        for drift_type in self.types:
+            prompt = AutonomousAgentDriftTemplate.generate_baseline_attacks(
+                drift_type, candidate_total, self.purpose
             )
-
-        for type in self.types:
-            for prompt in templates[type]:
-                if self.using_native_model:
-                    res, _ = self.simulator_model.generate(
-                        prompt, schema=SyntheticDataList
-                    )
-                    local_attacks = [item.input for item in res.data]
-                else:
-                    try:
-                        res: SyntheticDataList = self.simulator_model.generate(
-                            prompt, schema=SyntheticDataList
-                        )
-                        local_attacks = [item.input for item in res.data]
-                    except TypeError:
-                        res = self.simulator_model.generate(prompt)
-                        data = trimAndLoadJson(res)
-                        local_attacks = [item["input"] for item in data["data"]]
+            local_attacks = self._generate_local_attacks(prompt)
+            selected_attacks = select_quality_attacks(
+                drift_type, local_attacks, attacks_per_vulnerability_type
+            )
 
             simulated_test_cases.extend(
                 [
                     RTTestCase(
                         vulnerability=self.get_name(),
-                        vulnerability_type=type,
+                        vulnerability_type=drift_type,
                         input=local_attack,
                     )
-                    for local_attack in local_attacks
+                    for local_attack in selected_attacks
                 ]
             )
 
@@ -233,56 +221,73 @@ class AutonomousAgentDrift(BaseVulnerability):
         purpose: Optional[str] = None,
         attacks_per_vulnerability_type: int = 1,
     ) -> List[RTTestCase]:
+        candidate_total = candidate_count(attacks_per_vulnerability_type)
 
         self.simulator_model, self.using_native_model = initialize_model(
             self.simulator_model
         )
 
-        self.purpose = purpose
-
-        templates = dict()
+        self.purpose = self._resolve_purpose(purpose)
         simulated_test_cases: List[RTTestCase] = []
 
-        for type in self.types:
-            templates[type] = templates.get(type, [])
-            templates[type].append(
-                AutonomousAgentDriftTemplate.generate_baseline_attacks(
-                    type, attacks_per_vulnerability_type, self.purpose
-                )
+        for drift_type in self.types:
+            prompt = AutonomousAgentDriftTemplate.generate_baseline_attacks(
+                drift_type, candidate_total, self.purpose
             )
-
-        for type in self.types:
-            for prompt in templates[type]:
-                if self.using_native_model:
-                    res, _ = await self.simulator_model.a_generate(
-                        prompt, schema=SyntheticDataList
-                    )
-                    local_attacks = [item.input for item in res.data]
-                else:
-                    try:
-                        res: SyntheticDataList = (
-                            await self.simulator_model.a_generate(
-                                prompt, schema=SyntheticDataList
-                            )
-                        )
-                        local_attacks = [item.input for item in res.data]
-                    except TypeError:
-                        res = await self.simulator_model.a_generate(prompt)
-                        data = trimAndLoadJson(res)
-                        local_attacks = [item["input"] for item in data["data"]]
+            local_attacks = await self._a_generate_local_attacks(prompt)
+            selected_attacks = select_quality_attacks(
+                drift_type, local_attacks, attacks_per_vulnerability_type
+            )
 
             simulated_test_cases.extend(
                 [
                     RTTestCase(
                         vulnerability=self.get_name(),
-                        vulnerability_type=type,
+                        vulnerability_type=drift_type,
                         input=local_attack,
                     )
-                    for local_attack in local_attacks
+                    for local_attack in selected_attacks
                 ]
             )
 
         return simulated_test_cases
+
+    def _generate_local_attacks(self, prompt: str) -> List[str]:
+        if self.using_native_model:
+            res, _ = self.simulator_model.generate(
+                prompt, schema=SyntheticDataList
+            )
+            return normalize_simulated_attacks(res.data)
+
+        try:
+            res: SyntheticDataList = self.simulator_model.generate(
+                prompt, schema=SyntheticDataList
+            )
+            return normalize_simulated_attacks(res.data)
+        except TypeError:
+            res = self.simulator_model.generate(prompt)
+            data = trimAndLoadJson(res)
+            return normalize_simulated_attacks(data.get("data", []))
+
+    async def _a_generate_local_attacks(self, prompt: str) -> List[str]:
+        if self.using_native_model:
+            res, _ = await self.simulator_model.a_generate(
+                prompt, schema=SyntheticDataList
+            )
+            return normalize_simulated_attacks(res.data)
+
+        try:
+            res: SyntheticDataList = await self.simulator_model.a_generate(
+                prompt, schema=SyntheticDataList
+            )
+            return normalize_simulated_attacks(res.data)
+        except TypeError:
+            res = await self.simulator_model.a_generate(prompt)
+            data = trimAndLoadJson(res)
+            return normalize_simulated_attacks(data.get("data", []))
+
+    def _resolve_purpose(self, purpose: Optional[str]) -> Optional[str]:
+        return purpose if purpose is not None else self.purpose
 
     def _get_metric(
         self,

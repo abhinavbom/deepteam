@@ -257,6 +257,7 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
                 types=[
                     "agent_collusion",
                     "goal_drift",
+                    "objective_persistence",
                     "reward_hacking",
                     "runaway_autonomy",
                 ]
