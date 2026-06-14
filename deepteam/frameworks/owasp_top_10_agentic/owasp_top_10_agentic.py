@@ -13,19 +13,20 @@ introduced by autonomous and semi-autonomous AI agents. Unlike traditional LLM
 applications, agentic systems combine reasoning, memory, tools, and multi-step execution,
 introducing new classes of vulnerabilities that extend beyond prompt-level attacks.
 
-The 2026 edition focuses on failures arising from goal misalignment, tool misuse,
-delegated trust, inter-agent communication, persistent memory, and emergent autonomous
-behavior.
+The 2026 edition focuses on failures arising from goal hijacking, tool misuse,
+identity and privilege abuse, agentic supply-chain risk, unexpected code execution,
+memory and context poisoning, inter-agent communication, cascading failures,
+human-agent trust abuse, and rogue-agent behavior.
 
 The 10 critical risks are:
 1. ASI01 - Agent Goal Hijack: Manipulation of agent objectives or plans
 2. ASI02 - Tool Misuse & Exploitation: Unsafe or excessive use of tools
-3. ASI03 - Agent Identity & Privilege Abuse: Misuse of delegated authority or trust
-4. ASI04 - Agentic Supply Chain Compromise: Malicious tools, agents, or metadata
-5. ASI05 - Unexpected Code Execution: Unsafe execution of agent-generated code
+3. ASI03 - Identity & Privilege Abuse: Misuse of delegated authority or trust
+4. ASI04 - Agentic Supply Chain Vulnerabilities: Malicious tools, agents, or metadata
+5. ASI05 - Unexpected Code Execution (RCE): Unsafe execution of agent-generated code
 6. ASI06 - Memory & Context Poisoning: Corruption of agent memory or contextual state
 7. ASI07 - Insecure Inter-Agent Communication: Manipulated agent-to-agent messages
-8. ASI08 - Cascading Agent Failures: Failure propagation across agent systems
+8. ASI08 - Cascading Failures: Failure propagation across agent systems
 9. ASI09 - Human-Agent Trust Exploitation: Abuse of human over-reliance on agents
 10. ASI10 - Rogue Agents: Agents acting beyond intended objectives
 
@@ -43,7 +44,7 @@ Reference: https://genai.owasp.org/resource/owasp-top-10-for-agentic-application
 
 class OWASP_ASI_2026(AISafetyFramework):
     name = "OWASP Top 10 for Agentic Applications 2026"
-    description = "A comprehensive list of the most critical security risks associated with agentic AI applications. The 2026 edition focuses on failures introduced by autonomy, tool usage, delegated trust, memory persistence, inter-agent communication, and emergent behavior. Each risk category is evaluated using realistic attack techniques and typed vulnerability assessments aligned with agent reasoning and behavior."
+    description = "A comprehensive list of the most critical security risks associated with agentic AI applications. The 2026 edition focuses on failures introduced by goal hijacking, tool usage, delegated trust, supply-chain compromise, memory persistence, inter-agent communication, cascading failures, human-agent trust exploitation, and rogue-agent behavior. Each risk category is evaluated using realistic attack techniques and typed vulnerability assessments aligned with agent reasoning and behavior."
 
     ALLOWED_TYPES = [
         "ASI_01",

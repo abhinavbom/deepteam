@@ -1,4 +1,3 @@
-import pytest
 from deepteam.frameworks import OWASPTop10
 from deepteam.red_teamer.risk_assessment import RiskAssessment
 from deepteam.vulnerabilities import BaseVulnerability
@@ -183,31 +182,15 @@ class TestOWASP:
             assert all(isinstance(a, BaseAttack) for a in risk_category.attacks)
 
     def test_owasp_framework_with_red_team(self):
-        import random
-
         """Test that OWASP framework integrates correctly with red_team function."""
 
         # Simple mock model for testing
         def mock_model_callback(prompt: str, turns=None) -> str:
             return "I am a safe AI model and cannot perform unsafe actions."
 
-        categories = [
-            "LLM_01",
-            "LLM_02",
-            "LLM_03",
-            "LLM_04",
-            "LLM_05",
-            "LLM_06",
-            "LLM_07",
-            "LLM_08",
-            "LLM_09",
-            "LLM_10",
-        ]
-        random_category = random.choice(categories)
-
         risk_assessment = red_team(
             model_callback=mock_model_callback,
-            framework=OWASPTop10(categories=[random_category]),
+            framework=OWASPTop10(categories=["LLM_01"]),
             async_mode=False,
             ignore_errors=False,
         )
