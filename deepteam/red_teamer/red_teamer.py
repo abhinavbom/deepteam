@@ -988,6 +988,17 @@ class RedTeamer:
         console.print(table)
         console.print("\n" + "=" * 80)
 
+    @staticmethod
+    def _apply_risk_category_metadata(
+        test_cases: List[RTTestCase], risk_category: RiskCategory
+    ) -> None:
+        """Stamp the framework's external-taxonomy IDs (e.g. MITRE ATLAS
+        tactic_id / technique_ids) from the risk category onto each generated
+        test case, so red-team output is traceable back to the taxonomy."""
+        for test_case in test_cases:
+            test_case.tactic_id = risk_category.tactic_id
+            test_case.technique_ids = risk_category.technique_ids
+
     def _assess_framework(
         self,
         model_callback: CallbackType,
@@ -1036,6 +1047,9 @@ class RedTeamer:
                         total=1,
                     )
                     framework_assessment = assess_risk_category(risk_category)
+                    self._apply_risk_category_metadata(
+                        framework_assessment.test_cases, risk_category
+                    )
                     results[risk_category.name] = framework_assessment
                     update_pbar(progress_2, risk_task_id, advance_to_end=True)
                 update_pbar(progress, task_id)
@@ -1096,6 +1110,9 @@ class RedTeamer:
                         attacks_per_vulnerability_type=attacks_per_vulnerability_type,
                         _print_assessment=False,
                         _upload_to_confident=False,
+                    )
+                    self._apply_risk_category_metadata(
+                        assessment.test_cases, category
                     )
                     update_pbar(progress_2, risk_task_id, advance_to_end=True)
                 return category.name, assessment
