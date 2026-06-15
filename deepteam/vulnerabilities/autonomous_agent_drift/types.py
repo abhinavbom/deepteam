@@ -7,6 +7,7 @@ class AutonomousAgentDriftType(Enum):
     REWARD_HACKING = "reward_hacking"
     AGENT_COLLUSION = "agent_collusion"
     RUNAWAY_AUTONOMY = "runaway_autonomy"
+    OBJECTIVE_PERSISTENCE = "objective_persistence"
 
 
 AutonomousAgentDriftTypes = Literal[
@@ -14,4 +15,5 @@ AutonomousAgentDriftTypes = Literal[
     AutonomousAgentDriftType.REWARD_HACKING.value,
     AutonomousAgentDriftType.AGENT_COLLUSION.value,
     AutonomousAgentDriftType.RUNAWAY_AUTONOMY.value,
+    AutonomousAgentDriftType.OBJECTIVE_PERSISTENCE.value,
 ]
