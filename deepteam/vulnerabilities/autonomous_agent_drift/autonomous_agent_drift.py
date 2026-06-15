@@ -1,3 +1,6 @@
+from deepeval.tracing.types import Trace
+from deepteam.trace_scanner.schema import BatchFinding
+from deepteam.trace_scanner import TraceScanner
 from typing import List, Literal, Optional, Union, Dict
 import asyncio
 
