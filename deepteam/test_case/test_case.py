@@ -22,6 +22,10 @@ class RTTestCase(LLMTestCase):
     vulnerability_type: Enum = None
     attack_method: Optional[str] = None
     risk_category: Optional[str] = None
+    # Optional external-taxonomy traceability (e.g. MITRE ATLAS), populated
+    # from the framework's RiskCategory during a framework assessment.
+    tactic_id: Optional[str] = None
+    technique_ids: Optional[List[str]] = None
     score: Optional[float] = None
     reason: Optional[str] = None
     error: Optional[str] = None
@@ -43,6 +47,10 @@ class RTTestCase(LLMTestCase):
             attrs.append(f"attack_method={self.attack_method}")
         if self.risk_category is not None:
             attrs.append(f"risk_category={self.risk_category}")
+        if self.tactic_id is not None:
+            attrs.append(f"tactic_id={self.tactic_id}")
+        if self.technique_ids is not None:
+            attrs.append(f"technique_ids={self.technique_ids}")
         if self.score is not None:
             attrs.append(f"score={self.score}")
         if self.reason is not None:

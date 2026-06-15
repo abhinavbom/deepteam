@@ -28,6 +28,8 @@ class RiskCategoryInfo(BaseModel):
     description: Optional[str] = None
     display_name: Optional[str] = None
     attacks: Optional[List[str]] = None
+    tactic_id: Optional[str] = None
+    technique_ids: Optional[List[str]] = None
 
 
 def _flatten_vulnerability_types(risk_category: RiskCategory) -> List[str]:
@@ -47,6 +49,8 @@ def _serialize_risk_category(risk_category: RiskCategory) -> RiskCategoryInfo:
         attacks=attack_names,
         description=risk_category.description,
         display_name=risk_category._display_name,
+        tactic_id=risk_category.tactic_id,
+        technique_ids=risk_category.technique_ids,
     )
 
 

@@ -5,26 +5,39 @@ sidebar_label: MITRE ATLAS
 ---
 
 The **MITRE ATLAS™ (Adversarial Threat Landscape for Artificial-Intelligence Systems)** framework provides a structured knowledge base of adversarial tactics, techniques, and procedures (TTPs) used against AI and ML systems.
-It extends the principles of [MITRE ATT&CK®](https://attack.mitre.org) to the **AI threat surface**, identifying how adversaries can manipulate, exploit, or misuse AI models throughout their lifecycle.
+It extends the principles of [MITRE ATT&CK®](https://attack.mitre.org) to the **AI threat surface**, identifying how adversaries can manipulate, exploit, or misuse AI models and agents throughout their lifecycle.
 
-DeepTeam's **MITRE ATLAS module** implements these adversarial mappings to test your AI or LLM application for security, privacy, and robustness vulnerabilities, across each phase of the AI attack lifecycle.
+DeepTeam's **MITRE ATLAS module** maps the project's curated, judge-backed vulnerabilities and attacks onto the ATLAS matrix, so every generated test case traces back to a real ATLAS **tactic** and representative **techniques** (`AML.TA*` / `AML.T*`).
 
 ## Overview
 
 In DeepTeam, the MITRE ATLAS framework operationalizes AI-specific adversarial tactics to help organizations **detect**, **mitigate**, and **analyze** model exploitation risks.
 
-Each tactic represents a **goal** an adversary may have while attacking an AI system. These tactics collectively map the “why” behind adversarial actions and correspond to different testing modules in DeepTeam.
+Each tactic represents a **goal** an adversary may have while attacking an AI system. DeepTeam covers the ATLAS tactics that are **testable against a deployed LLM/agent via prompts**:
 
-| Tactic                   | Description                                                            |
-| ------------------------ | ---------------------------------------------------------------------- |
-| **Reconnaissance**       | Gathering intelligence about AI systems and configurations             |
-| **Resource Development** | Acquiring resources or tools to enable future attacks                  |
-| **Initial Access**       | Gaining entry to the target AI system or environment                   |
-| **ML Attack Staging**    | Preparing, training, or adapting attacks specifically for AI models    |
-| **Exfiltration**         | Stealing sensitive information, model data, or internal configurations |
-| **Impact**               | Manipulating or degrading AI systems to achieve adversarial goals      |
+| Tactic                   | ATLAS ID    | Description                                                            |
+| ------------------------ | ----------- | --------------------------------------------------------------------- |
+| **Reconnaissance & Discovery** | `AML.TA0008`| Profiling the AI system's model family, system info, tools, and agent config |
+| **Initial Access**       | `AML.TA0004`| Gaining a foothold via injection, poisoned retrieval, exposed surfaces|
+| **Execution**            | `AML.TA0005`| Running adversary-controlled code, commands, or tool actions          |
+| **Privilege Escalation** | `AML.TA0012`| Abusing roles, authorization, or inherited agent identity             |
+| **Defense Evasion**      | `AML.TA0007`| Bypassing guardrails via obfuscation, encoding, and jailbreaks        |
+| **Credential Access**    | `AML.TA0013`| Stealing secrets, API keys, and credentials                           |
+| **Collection**           | `AML.TA0009`| Aggregating cross-tenant/user/session data                            |
+| **AI Attack Staging**    | `AML.TA0001`| Crafting adversarial data and poisoning context                       |
+| **Exfiltration**         | `AML.TA0010`| Stealing system prompts, data, and intellectual property              |
+| **Impact**               | `AML.TA0011`| Manipulating, degrading, or inducing harmful actions (External Harms) |
+| **Command & Control**    | `AML.TA0014`| Establishing covert agent control/signalling channels                 |
 
-Each of these categories can be tested independently or together:
+:::note Out of scope
+Pre-attack OSINT, training-time, offline, infrastructure, and adversary-side tactics are **not** prompt-testable against a live target and are intentionally excluded: Reconnaissance (`AML.TA0002`, OSINT — the prompt-testable profiling lives under Discovery above), Resource Development (`AML.TA0003`), AI Model Access (`AML.TA0000`), Persistence (`AML.TA0006`), and Lateral Movement (`AML.TA0015`).
+
+deepteam category names are behavioural groupings; each category's `tactic_id`/`technique_ids` are pinned to the ATLAS tactic that **actually owns** the cited techniques (e.g. `LLM Prompt Injection` → Execution, model/agent profiling → Discovery), not to the tactic the name colloquially implies.
+
+**Removed categories:** the legacy `resource_development` category (and any other non-prompt-testable tactic) is no longer selectable. Passing it raises a `ValueError` listing the valid categories, rather than silently returning an empty mapping.
+:::
+
+Each of these categories can be tested independently or together (all are selected by default):
 
 ```python
 from deepteam.frameworks import MITRE
@@ -37,287 +50,265 @@ vulnerabilities = atlas.vulnerabilities
 
 risk_assessment = red_team(
     model_callback=your_model_callback,
-    vulnerabilities=vulnerabilities,
-    attacks=attacks
+    framework=atlas,
 )
 ```
 
 The `MITRE` framework accepts **ONE** optional parameter:
 
 - [Optional] `categories`: A list of strings that represent the `MITRE` ATLAS tactics you want to test your AI application on:
-    - `reconnaissance`: Tests for unintended disclosure of internal info, prompts, or policies through probing or reasoning.
-    - `resource_development`: Checks if the system can aid in creating or supporting malicious tools or content.
-    - `initial_access`: Evaluates resistance to malicious entry via prompt injection, debug access, or exposed interfaces.
-    - `ml_attack_staging`: Tests handling of poisoned or adversarial inputs used to prepare model-targeted attacks.
-    - `exfiltration`: Detects data leakage or extraction of sensitive information through adversarial queries.
-    - `impact`: Simulates harmful actions like goal hijacking, content manipulation, or autonomy abuse.
+    - `reconnaissance`: Probes for disclosure of model family, configuration, tools, retrieval sources, and guardrails (also covers post-access Discovery).
+    - `initial_access`: Resistance to direct/indirect prompt injection, poisoned RAG content, and exposed debug/admin surfaces.
+    - `execution`: Whether crafted input can trigger code/command/tool execution through the model or its tools.
+    - `privilege_escalation`: Abuse of roles, object/function authorization, and inherited agent identity/trust.
+    - `defense_evasion`: Whether encoding, obfuscation, multilingual, or jailbreak techniques bypass guardrails.
+    - `credential_access`: Disclosure of secrets, API keys, and credentials via prompts, retrieval, or tools.
+    - `collection`: Cross-tenant/user/session data aggregation from connected sources.
+    - `ml_attack_staging`: Handling of adversarial/poisoned inputs used to stage model-targeted attacks.
+    - `exfiltration`: Leakage of system prompts, sensitive data, or IP through direct, encoded, or tool channels.
+    - `impact`: Goal hijacking, autonomy abuse, resource exhaustion, and harmful content generation.
+    - `command_and_control`: Covert control via agent-to-agent message injection/spoofing and relayed instructions.
 
 ## The MITRE ATLAS Tactics
 
-### Reconnaissance — Information Gathering and System Profiling
+### Reconnaissance & Discovery — Model/System/Agent Profiling
 
-**(MITRE ATLAS ID: AML.TA0002)**
+**(MITRE ATLAS ID: AML.TA0008 — Discovery)**
 
-**Goal:** The adversary is trying to gather information about the AI system they can use to plan future operations.
-
-Reconnaissance involves identifying model capabilities, business rules, and potential weaknesses. Adversaries may probe model outputs, query APIs, or use role-based misdirection to uncover internal policies, system prompts, or hidden logic.
-
-DeepTeam tests whether your AI system inadvertently exposes:
-
-- Internal guardrails, policies, or roles
-- Confidential reasoning chains or business logic
-- Sensitive prompts, credentials, or decision rules
-- Competitive or private strategic information
+**Goal:** The adversary is trying to profile the AI system — its model family, system information, connected tools, and agent configuration. ATLAS Reconnaissance (`AML.TA0002`) covers pre-attack OSINT that isn't testable via prompts, so this category maps to the prompt-testable **Discovery** tactic.
 
 **Example vulnerabilities**
 
+- `SystemReconnaissance`
 - `Competition`
 - `PromptLeakage`
-- `RBAC`
-- `CustomVulnerability` — _Policy Disclosure_
 
 **Example attacks**
 
-- `Roleplay`
-- `PromptInjection`
-- `CrescendoJailbreaking`
-- `SequentialJailbreak`
-- `TreeJailbreaking`
+- `PromptProbing`, `GrayBox`
+- `Roleplay` (independent AI security auditor persona)
+- `Multilingual`, `PromptInjection`
 
 ```python
-from deepteam.frameworks import MITRE
-from deepteam import red_team
-from somewhere import your_model_callback
-
 atlas = MITRE(categories=["reconnaissance"])
-attacks = atlas.attacks
-vulnerabilities = atlas.vulnerabilities
-
-# Modify attributes for your specific testing context if needed
-red_team(
-    model_callback=your_model_callback, 
-    attacks=attacks, 
-    vulnerabilities=vulnerabilities
-)
 ```
 
-Reconnaissance testing ensures your model does not reveal **sensitive internal logic** or **operational metadata** to external users.
-
-### Resource Development — Adversarial Capability Building
-
-**(MITRE ATLAS ID: AML.TA0003)**
-
-**Goal:** The adversary is creating or acquiring resources (data, prompts, tools, accounts) to enable future AI attacks.
-
-**Threat landscape:** Adversaries prepare poisoned datasets, prompt libraries, proxy models, or obfuscated payloads that can be used later to bypass safeguards, craft jailbreaks, or seed long-term attacks.
-
-**Testing strategy:** Simulate adversary preparations by submitting obfuscated/templated prompts, benign-looking poisoned examples, and dataset-like inputs to detect:
-
-- whether the system assists in creating malicious artifacts, or
-- whether such inputs are accepted, stored, or likely to influence future behavior (e.g., RAG ingestion, fine-tuning pipelines, or plugin storage).
-
-**Example vulnerabilities**
-
-- `IllegalActivity`
-- `CustomVulnerability` - _Execution, Persistence, Defense Evasion, Discovery, CommandAndControl_
-
-**Example attacks**
-
-- `Roleplay`
-- `Leetspeak`, `ROT13`
-- `PromptInjection`, `CrescendoJailbreaking`
-
-```python
-from deepteam.frameworks import MITRE
-from deepteam import red_team
-from somewhere import your_model_callback
-
-atlas = MITRE(categories=["resource_development"])
-attacks = atlas.attacks
-vulnerabilities = atlas.vulnerabilities
-
-# Modify attributes for your specific testing context if needed
-red_team(
-    model_callback=your_model_callback, 
-    attacks=attacks, 
-    vulnerabilities=vulnerabilities
-)
-```
-
-This ensures your AI system remains resilient against adversarial data collection, obfuscation, or resource manipulation during reconnaissance and setup stages.
-
-### Initial Access — Entry Point Exploitation
+### Initial Access — Gaining Entry to the AI System
 
 **(MITRE ATLAS ID: AML.TA0004)**
 
-**Goal:** The adversary is trying to gain access to the AI system.
-
-Adversaries may attempt to exploit the AI model's input surfaces, administrative interfaces, or embedded systems. DeepTeam maps these behaviors through **code injection**, **misuse of debugging features**, and **role impersonation**.
+**Goal:** The adversary is trying to gain a foothold, typically via direct or indirect prompt injection, poisoned retrieval content, or exposed development/debug surfaces.
 
 **Example vulnerabilities**
 
+- `IndirectInstruction`
 - `DebugAccess`
-- `IllegalActivity`
-- `SQLInjection`
-- `SSRF`
-- `ShellInjection`
+- `ToolMetadataPoisoning`
 
 **Example attacks**
 
-- `PromptInjection`
-- `LinearJailbreaking`
-- `SequentialJailbreak`
-- `Roleplay`
+- `PromptInjection`, `EmbeddedInstructionJSON`, `SyntheticContextInjection`
+- `LinearJailbreaking`, `TreeJailbreaking`
 
 ```python
-from deepteam.frameworks import MITRE
-from deepteam import red_team
-from somewhere import your_model_callback
-
 atlas = MITRE(categories=["initial_access"])
-attacks = atlas.attacks
-vulnerabilities = atlas.vulnerabilities
-
-# Modify attributes for your specific testing context if needed
-red_team(
-    model_callback=your_model_callback, 
-    attacks=attacks, 
-    vulnerabilities=vulnerabilities
-)
 ```
 
-Testing this phase ensures your model and connected systems resist **direct exploitation** or **unauthorized entry** into AI pipelines.
+### Execution — Running Adversary-Controlled Code & Actions
 
-### ML Attack Staging — Model-Specific Attack Preparation
+**(MITRE ATLAS ID: AML.TA0005)**
+
+**Goal:** The adversary is trying to run adversary-controlled code, commands, or tool actions through the model or its connected tools and interpreters.
+
+**Example vulnerabilities**
+
+- `UnexpectedCodeExecution`
+- `ShellInjection`, `SQLInjection`, `SSRF`
+- `ExploitToolAgent`, `ExcessiveAgency`
+
+**Example attacks**
+
+- `PromptInjection`, `EmbeddedInstructionJSON`
+- `GoalRedirection`, `SystemOverride`, `Base64`
+
+```python
+atlas = MITRE(categories=["execution"])
+```
+
+### Privilege Escalation — Gaining Higher-Level Permissions
+
+**(MITRE ATLAS ID: AML.TA0012)**
+
+**Goal:** The adversary is trying to obtain higher-level permissions by abusing roles, object/function authorization, or inherited agent identity and trust.
+
+**Example vulnerabilities**
+
+- `RBAC`, `BFLA`, `BOLA`
+- `AgentIdentityAbuse`
+
+**Example attacks**
+
+- `PermissionEscalation`, `AuthorityEscalation`
+- `Roleplay` (on-call SRE persona), `PromptInjection`
+
+```python
+atlas = MITRE(categories=["privilege_escalation"])
+```
+
+### Defense Evasion — Bypassing Guardrails & Detection
+
+**(MITRE ATLAS ID: AML.TA0007)**
+
+**Goal:** The adversary is trying to bypass guardrails and detection using encoding, obfuscation, multilingual, or jailbreak techniques so restricted behaviour slips through.
+
+**Example vulnerabilities**
+
+- `PromptLeakage`
+- `Robustness`
+
+**Example attacks**
+
+- `Base64`, `ROT13`, `Leetspeak`, `Multilingual`
+- `AdversarialPoetry`, `CharacterStream`, `LinguisticConfusion`, `BadLikertJudge`
+
+```python
+atlas = MITRE(categories=["defense_evasion"])
+```
+
+### Credential Access — Stealing Secrets & Credentials
+
+**(MITRE ATLAS ID: AML.TA0013)**
+
+**Goal:** The adversary is trying to steal credentials, API keys, and other secrets exposed through prompts, retrieval content, or tool integrations.
+
+**Example vulnerabilities**
+
+- `PromptLeakage`
+- `PIILeakage`
+
+**Example attacks**
+
+- `PromptProbing`, `ContextPoisoning`
+- `Roleplay` (DevOps engineer persona), `PromptInjection`
+
+```python
+atlas = MITRE(categories=["credential_access"])
+```
+
+### Collection — Aggregating Targeted Data
+
+**(MITRE ATLAS ID: AML.TA0009)**
+
+**Goal:** The adversary is trying to gather and aggregate targeted data — across tenants, users, sessions, and connected data sources — for later exfiltration or abuse.
+
+**Example vulnerabilities**
+
+- `CrossContextRetrieval`
+- `PIILeakage`
+- `PromptLeakage`
+
+**Example attacks**
+
+- `PromptProbing`, `ContextPoisoning`
+- `SequentialJailbreak`, `PromptInjection`
+
+```python
+atlas = MITRE(categories=["collection"])
+```
+
+### AI Attack Staging — Model-Specific Attack Preparation
 
 **(MITRE ATLAS ID: AML.TA0001)**
 
-**Goal:** The adversary is leveraging their knowledge of and access to the target system to tailor the attack.
-
-This phase is unique to AI. Attackers train **proxy models**, **poison context**, or **craft adversarial inputs** to prepare targeted manipulations.
-
-DeepTeam emulates these scenarios by introducing **hallucination-based, poisoned, or misleading inputs** and observing how your model responds.
+**Goal:** The adversary is leveraging knowledge of and access to the target to craft adversarial inputs, poison context, and stage model-specific attacks.
 
 **Example vulnerabilities**
 
-- `ExcessiveAgency`
-- `CustomVulnerability` — _Hallucination_
-- `CustomVulnerability` — _Indirect Prompt Injection_
+- `Misinformation`
+- `IndirectInstruction`
+- `Robustness`
 
 **Example attacks**
 
-- `PromptInjection`, `Leetspeak`, `ROT13`
-- `LinearJailbreaking`, `TreeJailbreaking`, `SequentialJailbreak`
+- `GrayBox`, `ContextPoisoning`, `SyntheticContextInjection`
+- `BadLikertJudge`, `PromptInjection`
 
 ```python
-from deepteam.frameworks import MITRE
-from deepteam import red_team
-from somewhere import your_model_callback
-
 atlas = MITRE(categories=["ml_attack_staging"])
-attacks = atlas.attacks
-vulnerabilities = atlas.vulnerabilities
-
-# Modify attributes for your specific testing context if needed
-red_team(
-    model_callback=your_model_callback, 
-    attacks=attacks, 
-    vulnerabilities=vulnerabilities
-)
 ```
 
-This phase helps ensure your model's **context integrity**, **instruction following**, and **data reliability** cannot be manipulated by crafted adversarial inputs.
-
-### Exfiltration — Data or Model Theft
+### Exfiltration — Data & Model Theft
 
 **(MITRE ATLAS ID: AML.TA0010)**
 
-**Goal:** The adversary is trying to steal AI artifacts or other sensitive information.
-
-Adversaries in this stage attempt to **extract system prompts, private data, or intellectual property** through direct or indirect model interaction.
-
-DeepTeam tests for **leakage, encoding abuse, and unauthorized disclosure** across multiple channels.
+**Goal:** The adversary is trying to steal AI artifacts and sensitive information — system prompts, IP/training content, and user data — via inference, encoding, or tool-mediated channels.
 
 **Example vulnerabilities**
 
 - `PIILeakage`
+- `PromptLeakage`
 - `IntellectualProperty`
-- `CustomVulnerability` — _ASCII Smuggling, Prompt Extraction, Privacy, Indirect Prompt Injection_
+- `ExternalSystemAbuse`
 
 **Example attacks**
 
-- `PromptProbing`, `Leetspeak`, `ROT13`
-- `PromptInjection`, `SequentialJailbreak`
-- `Roleplay` (Security Engineer persona)
+- `PromptProbing`, `Base64`, `ROT13`
+- `Multilingual`, `PromptInjection`
 
 ```python
-from deepteam.frameworks import MITRE
-from deepteam import red_team
-from somewhere import your_model_callback
-
 atlas = MITRE(categories=["exfiltration"])
-attacks = atlas.attacks
-vulnerabilities = atlas.vulnerabilities
-
-# Modify attributes for your specific testing context if needed
-red_team(
-    model_callback=your_model_callback, 
-    attacks=attacks, 
-    vulnerabilities=vulnerabilities
-)
 ```
 
-This testing phase validates whether your AI system properly **masks**, **encodes**, and **protects** data to prevent exfiltration through direct or covert model outputs.
-
-### Impact — Manipulation, Misuse, and Degradation
+### Impact — Manipulation, Misuse & Degradation
 
 **(MITRE ATLAS ID: AML.TA0011)**
 
-**Goal:** The adversary is trying to manipulate, interrupt, or degrade AI system performance or trustworthiness.
-
-In this final phase, adversaries aim to cause **misinformation, impersonation, or reputational harm**, or to exploit recursive model behaviors for persistent manipulation.
-
-DeepTeam evaluates whether your AI system can resist **goal hijacking**, **recursive propagation**, or **harmful content generation**.
+**Goal:** The adversary is trying to manipulate, interrupt, or degrade the AI system — hijacking goals, abusing autonomy, exhausting resources, or inducing harmful external actions (ATLAS External Harms).
 
 **Example vulnerabilities**
 
-- `ExcessiveAgency`
-- `GraphicContent`
-- `RecursiveHijacking`
-- `CustomVulnerability` — *Imitation*
+- `RecursiveHijacking`, `AutonomousAgentDrift`, `ExcessiveAgency`
+- `GoalTheft`, `AgentIdentityAbuse`, `ToolOrchestrationAbuse`
+- `IllegalActivity`, `GraphicContent`
 
 **Example attacks**
 
-- `PromptInjection`, `LinearJailbreaking`, `CrescendoJailbreaking`
-- `Roleplay` (Authoritative CEO persona)
+- `GoalRedirection`, `SystemOverride`, `CrescendoJailbreaking`
+- `Roleplay` (time-pressured operations lead persona), `SequentialJailbreak`, `PromptInjection`
 
 ```python
-from deepteam.frameworks import MITRE
-from deepteam import red_team
-from somewhere import your_model_callback
-
 atlas = MITRE(categories=["impact"])
-attacks = atlas.attacks
-vulnerabilities = atlas.vulnerabilities
-
-# Modify attributes for your specific testing context if needed
-red_team(
-    model_callback=your_model_callback, 
-    attacks=attacks, 
-    vulnerabilities=vulnerabilities
-)
 ```
 
-This stage ensures your system's final outputs and decisions remain aligned with **intended ethics, safety, and trust boundaries** — even under adversarial manipulation.
+### Command & Control — Covert Agent Control Channels
+
+**(MITRE ATLAS ID: AML.TA0014)**
+
+**Goal:** The adversary is trying to establish covert control or signalling channels through agent-to-agent communication, spoofed internal messages, or relayed instructions.
+
+**Example vulnerabilities**
+
+- `InsecureInterAgentCommunication`
+- `ExternalSystemAbuse`
+- `ToolOrchestrationAbuse`
+
+**Example attacks**
+
+- `PromptInjection`, `EmbeddedInstructionJSON`
+- `ContextPoisoning`, `SyntheticContextInjection`
+
+```python
+atlas = MITRE(categories=["command_and_control"])
+```
 
 ## Best Practices
 
-1. **Test across all six phases** to ensure lifecycle-wide resilience.
-2. **Simulate real adversaries** using chained or contextual attacks (`CrescendoJailbreaking`, `PromptProbing`).
-3. **Audit and document every run** — align red teaming results with MITRE ATLAS categories.
+1. **Test across all lifecycle phases** to ensure lifecycle-wide resilience.
+2. **Simulate real adversaries** using chained or contextual attacks (`CrescendoJailbreaking`, `PromptProbing`, `ContextPoisoning`).
+3. **Audit and document every run** — each generated MITRE test case (`RTTestCase`) carries its ATLAS `tactic_id` and `technique_ids`, and the framework's risk-category metadata exposes them too, for traceability back to the matrix.
 4. **Integrate with NIST AI RMF** — combine measurement (NIST) and tactics (MITRE) for complete coverage.
 5. **Continuously retrain and monitor** models for post-deployment drift and new attack patterns.
-6. **Review model behavior under role-based adversarial prompts** to detect policy leaks or privilege misuse.
+6. **Review model behaviour under role-based adversarial prompts** to detect policy leaks or privilege misuse.
 
 ## Learn More
 
