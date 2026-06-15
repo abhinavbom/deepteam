@@ -156,6 +156,8 @@ class PromptExtractionMetric(BaseRedTeamingMetric):
             purpose=self.purpose,
             retrieval_context=retrieval_context,
             tools_called=tools_called,
+            evaluation_examples=self.evaluation_examples,
+            evaluation_guidelines=self.evaluation_guidelines,
         )
         if self.using_native_model:
             res, cost = await self.model.a_generate(
@@ -196,6 +198,8 @@ class PromptExtractionMetric(BaseRedTeamingMetric):
             purpose=self.purpose,
             retrieval_context=retrieval_context,
             tools_called=tools_called,
+            evaluation_examples=self.evaluation_examples,
+            evaluation_guidelines=self.evaluation_guidelines,
         )
         if self.using_native_model:
             res, cost = self.model.generate(prompt=prompt, schema=ReasonScore)

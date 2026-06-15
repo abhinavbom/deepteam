@@ -1,5 +1,7 @@
 import asyncio
+import logging
 import time
+import traceback
 from typing import Dict, List, Optional, Union
 import webbrowser
 from rich.console import Console
@@ -45,6 +47,8 @@ from deepteam.red_teamer.risk_assessment import (
 from deepteam.risks import getRiskCategory
 
 console = Console()
+
+logger = logging.getLogger(__name__)
 
 
 class RedTeamer:
@@ -545,6 +549,12 @@ class RedTeamer:
                 red_teaming_test_case.reason = metric.reason
             except:
                 if ignore_errors:
+                    logger.warning(
+                        "Red-team evaluation failed for vulnerability type '%s'; "
+                        "recording test case as errored. Underlying error:\n%s",
+                        vulnerability_type.value,
+                        traceback.format_exc(),
+                    )
                     red_teaming_test_case.error = f"Error evaluating target LLM output for the '{vulnerability_type.value}' vulnerability type"
                     return red_teaming_test_case
                 else:
@@ -568,6 +578,11 @@ class RedTeamer:
                     )
             except Exception:
                 if ignore_errors:
+                    logger.warning(
+                        "Target model callback failed; recording test case as "
+                        "errored. Underlying error:\n%s",
+                        traceback.format_exc(),
+                    )
                     red_teaming_test_case.error = (
                         "Error generating output from target LLM"
                     )
@@ -586,6 +601,12 @@ class RedTeamer:
                 red_teaming_test_case.reason = metric.reason
             except:
                 if ignore_errors:
+                    logger.warning(
+                        "Red-team evaluation failed for vulnerability type '%s'; "
+                        "recording test case as errored. Underlying error:\n%s",
+                        vulnerability_type.value,
+                        traceback.format_exc(),
+                    )
                     red_teaming_test_case.error = f"Error evaluating target LLM output for the '{vulnerability_type.value}' vulnerability type"
                     return red_teaming_test_case
                 else:
@@ -626,6 +647,12 @@ class RedTeamer:
                 red_teaming_test_case.reason = metric.reason
             except:
                 if ignore_errors:
+                    logger.warning(
+                        "Red-team evaluation failed for vulnerability type '%s'; "
+                        "recording test case as errored. Underlying error:\n%s",
+                        vulnerability_type.value,
+                        traceback.format_exc(),
+                    )
                     red_teaming_test_case.error = f"Error evaluating target LLM output for the '{vulnerability_type.value}' vulnerability type"
                     return red_teaming_test_case
                 else:
@@ -649,6 +676,11 @@ class RedTeamer:
                     )
             except Exception:
                 if ignore_errors:
+                    logger.warning(
+                        "Target model callback failed; recording test case as "
+                        "errored. Underlying error:\n%s",
+                        traceback.format_exc(),
+                    )
                     red_teaming_test_case.error = (
                         "Error generating output from target LLM"
                     )
@@ -667,6 +699,12 @@ class RedTeamer:
                 red_teaming_test_case.reason = metric.reason
             except:
                 if ignore_errors:
+                    logger.warning(
+                        "Red-team evaluation failed for vulnerability type '%s'; "
+                        "recording test case as errored. Underlying error:\n%s",
+                        vulnerability_type.value,
+                        traceback.format_exc(),
+                    )
                     red_teaming_test_case.error = f"Error evaluating target LLM output for the '{vulnerability_type.value}' vulnerability type"
                     return red_teaming_test_case
                 else:
