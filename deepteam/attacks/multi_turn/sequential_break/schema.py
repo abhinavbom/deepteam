@@ -14,15 +14,18 @@ class RewrittenDialogue(BaseModel):
 
 
 class DialogueJudge(BaseModel):
-    classification: Literal["Harmful", "Not harmful"]
+    harmful: bool
+    reasoning: str
 
 
 class QuestionBankJudge(BaseModel):
-    classification: Literal["Harmful", "Not harmful"]
+    harmful: bool
+    reasoning: str
 
 
 class GameEnvironmentJudge(BaseModel):
-    classification: Literal["Harmful", "Not harmful"]
+    harmful: bool
+    reasoning: str
 
 
 class ImprovedAttack(BaseModel):

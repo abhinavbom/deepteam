@@ -2,7 +2,7 @@ import json
 import copy
 from typing import Optional, Dict, Any, Literal
 
-from deepteam.attacks.single_turn import BaseSingleTurnAttack
+from deepteam.attacks.single_turn import BaseSingleTurnAttack, AttackParameter
 from deepteam.attacks.base_attack import Exploitability
 from deepteam.attacks.single_turn.embedded_instruction_json.template import (
     DEFAULT_JSON,
@@ -15,6 +15,28 @@ class EmbeddedInstructionJSON(BaseSingleTurnAttack):
     name = "EmbeddedInstructionJSON"
     exploitability = Exploitability.MEDIUM
     description = "A single-turn attack that embeds an attack payload as structured JSON data."
+    parameters = {
+        "target_chars": AttackParameter(
+            type="integer",
+            default=2000,
+            description="Target character size for generated JSON context.",
+        ),
+        "target_depth": AttackParameter(
+            type="integer",
+            default=4,
+            description="Depth of nested structure used for embedding payload.",
+        ),
+        "json_template": AttackParameter(
+            type="json",
+            description="Optional base JSON template used before expansion.",
+        ),
+        "attack_position": AttackParameter(
+            type="enum",
+            default="end",
+            options=["start", "middle", "end"],
+            description="Where deep_context payload is inserted into the JSON object.",
+        ),
+    }
 
     def __init__(
         self,

@@ -4,15 +4,18 @@ from deepeval.models import DeepEvalBaseLLM
 from deepeval.metrics.utils import initialize_model
 
 from deepteam.utils import create_progress, update_pbar, add_pbar
-from deepteam.attacks.single_turn import BaseSingleTurnAttack
+from deepteam.attacks.single_turn import BaseSingleTurnAttack, AttackParameter
 from deepteam.attacks.base_attack import Exploitability
 from deepteam.attacks.single_turn.multilingual.template import (
     MultilingualTemplate,
 )
 from deepteam.attacks.single_turn.multilingual.schema import (
     EnhancedAttack,
-    ComplianceData,
     IsTranslation,
+)
+from deepteam.attacks.single_turn.compliance import (
+    evaluate_generation_compliance,
+    a_evaluate_generation_compliance,
 )
 from deepteam.attacks.attack_simulator.utils import (
     generate,
@@ -24,6 +27,12 @@ class Multilingual(BaseSingleTurnAttack):
     name = "Multilingual"
     exploitability = Exploitability.MEDIUM
     description = "A translation-based attack that converts prompts into low-resource or non-English languages to exploit weaker safety training in multilingual models."
+    parameters = {
+        "language": AttackParameter(
+            type="string",
+            description="Language used for the intermediate rewrite before returning English output.",
+        )
+    }
 
     def __init__(
         self,
@@ -60,11 +69,8 @@ class Multilingual(BaseSingleTurnAttack):
                 enhanced_attack = res.input + self.get_additional_instructions()
                 update_pbar(progress, task_id)
 
-                compliance_prompt = MultilingualTemplate.non_compliant(
-                    res.model_dump()
-                )
-                compliance_res: ComplianceData = generate(
-                    compliance_prompt, ComplianceData, self.simulator_model
+                compliance_res = evaluate_generation_compliance(
+                    res.model_dump(), self.simulator_model
                 )
                 update_pbar(progress, task_id)
 
@@ -111,11 +117,8 @@ class Multilingual(BaseSingleTurnAttack):
                     )
                     update_pbar(progress, task_id)
 
-                    compliance_prompt = MultilingualTemplate.non_compliant(
-                        res.model_dump()
-                    )
-                    compliance_res: ComplianceData = await a_generate(
-                        compliance_prompt, ComplianceData, self.simulator_model
+                    compliance_res = await a_evaluate_generation_compliance(
+                        res.model_dump(), self.simulator_model
                     )
                     update_pbar(progress, task_id)
 

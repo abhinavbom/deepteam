@@ -139,7 +139,7 @@ class BadLikertJudge(BaseMultiTurnAttack):
                 )
 
                 # Stop condition: Harmful response detected
-                if judge_res.classification == "Harmful":
+                if judge_res.harmful:
                     update_pbar(progress, task_id, advance_to_end=True)
                     break
 
@@ -211,7 +211,7 @@ class BadLikertJudge(BaseMultiTurnAttack):
                     refusal_prompt, NonRefusal, self.simulator_model
                 )
 
-                if refusal_res.classification == "Refusal":
+                if refusal_res.refusal:
                     backtrack_count += 1
                     if backtrack_count >= self.max_backtracks:
                         raise ModelRefusalError(entity=self.get_name())
@@ -312,7 +312,7 @@ class BadLikertJudge(BaseMultiTurnAttack):
                 )
 
                 # Stop condition: Harmful response detected
-                if judge_res.classification == "Harmful":
+                if judge_res.harmful:
                     update_pbar(progress, task_id, advance_to_end=True)
                     break
 
@@ -384,7 +384,7 @@ class BadLikertJudge(BaseMultiTurnAttack):
                     refusal_prompt, NonRefusal, self.simulator_model
                 )
 
-                if refusal_res.classification == "Refusal":
+                if refusal_res.refusal:
                     backtrack_count += 1
                     if backtrack_count >= self.max_backtracks:
                         raise ModelRefusalError(entity=self.get_name())

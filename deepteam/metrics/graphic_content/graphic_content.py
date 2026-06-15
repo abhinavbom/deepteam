@@ -14,7 +14,15 @@ from deepeval.metrics.indicator import metric_progress_indicator
 from deepteam.metrics import BaseRedTeamingMetric
 from deepteam.metrics.graphic_content.schema import *
 from deepteam.metrics.graphic_content.template import GraphicTemplate
+from deepteam.metrics.evaluation_prompt_blocks import (
+    format_vulnerability_type_label,
+)
 from deepteam.utils import format_turns
+from deepteam.metrics.types import EvaluationExample
+from deepteam.metrics.model_reply_screening import (
+    single_turn_reply_bypasses_llm_judge,
+    DECLINE_OR_EMPTY_PASS_REASON,
+)
 
 
 class GraphicMetric(BaseRedTeamingMetric):
@@ -27,6 +35,8 @@ class GraphicMetric(BaseRedTeamingMetric):
         model: Optional[Union[str, DeepEvalBaseLLM]] = None,
         async_mode: bool = True,
         verbose_mode: bool = False,
+        evaluation_examples: Optional[List[EvaluationExample]] = None,
+        evaluation_guidelines: Optional[List[str]] = None,
     ):
         self.graphic_category = graphic_category
         self.purpose = purpose  # Added: store purpose for template
@@ -34,6 +44,8 @@ class GraphicMetric(BaseRedTeamingMetric):
         self.evaluation_model = self.model.get_model_name()
         self.async_mode = async_mode
         self.verbose_mode = verbose_mode
+        self.evaluation_examples = evaluation_examples
+        self.evaluation_guidelines = evaluation_guidelines
 
     def measure(self, test_case: RTTestCase) -> float:
 
@@ -88,17 +100,25 @@ class GraphicMetric(BaseRedTeamingMetric):
         if test_case.turns is not None:
             actual_output = format_turns(test_case.turns)
         else:
+            if single_turn_reply_bypasses_llm_judge(test_case.actual_output):
+                return 1, DECLINE_OR_EMPTY_PASS_REASON
             actual_output = (
                 "AI'S ACTUAL OUTPUT TO EVALUATE: \n"
                 + test_case.actual_output
                 + "\n"
             )
 
+        vulnerability_type_label = format_vulnerability_type_label(
+            test_case.vulnerability_type
+        )
         prompt = GraphicTemplate.generate_evaluation_results(
             input=test_case.input,
             actual_output=actual_output,
             graphic_category=self.graphic_category,
             purpose=self.purpose,  # Added: pass purpose to template
+            evaluation_examples=self.evaluation_examples,
+            evaluation_guidelines=self.evaluation_guidelines,
+            vulnerability_type_label=vulnerability_type_label,
         )
         if self.using_native_model:
             res, cost = await self.model.a_generate(
@@ -122,17 +142,25 @@ class GraphicMetric(BaseRedTeamingMetric):
         if test_case.turns is not None:
             actual_output = format_turns(test_case.turns)
         else:
+            if single_turn_reply_bypasses_llm_judge(test_case.actual_output):
+                return 1, DECLINE_OR_EMPTY_PASS_REASON
             actual_output = (
                 "AI'S ACTUAL OUTPUT TO EVALUATE: \n"
                 + test_case.actual_output
                 + "\n"
             )
 
+        vulnerability_type_label = format_vulnerability_type_label(
+            test_case.vulnerability_type
+        )
         prompt = GraphicTemplate.generate_evaluation_results(
             input=test_case.input,
             actual_output=actual_output,
             graphic_category=self.graphic_category,
             purpose=self.purpose,  # Added: pass purpose to template
+            evaluation_examples=self.evaluation_examples,
+            evaluation_guidelines=self.evaluation_guidelines,
+            vulnerability_type_label=vulnerability_type_label,
         )
         if self.using_native_model:
             res, cost = self.model.generate(prompt=prompt, schema=ReasonScore)

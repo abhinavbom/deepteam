@@ -1,5 +1,5 @@
 from typing import Literal, Optional
-from deepteam.attacks.single_turn import BaseSingleTurnAttack
+from deepteam.attacks.single_turn import BaseSingleTurnAttack, AttackParameter
 from deepteam.attacks.base_attack import Exploitability
 from deepteam.attacks.single_turn.context_flooding.template import (
     DEFAULT_PREFIXES,
@@ -12,6 +12,23 @@ class ContextFlooding(BaseSingleTurnAttack):
     name = "ContextFlooding"
     exploitability = Exploitability.MEDIUM
     description = "A single-turn attack that floods the LLM's context with long pre-defined prefixes to hit a target character size."
+    parameters = {
+        "target_chars": AttackParameter(
+            type="integer",
+            default=4000,
+            description="Target character length for generated context prefix.",
+        ),
+        "prefix": AttackParameter(
+            type="string",
+            description="Custom prefix text; when set, overrides prefix_type.",
+        ),
+        "prefix_type": AttackParameter(
+            type="enum",
+            default="enterprise",
+            options=["enterprise", "logs", "transcript"],
+            description="Built-in prefix template to use when custom prefix is not provided.",
+        ),
+    }
 
     def __init__(
         self,

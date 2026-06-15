@@ -13,7 +13,9 @@ from deepteam.vulnerabilities.autonomous_agent_drift import (
 )
 from deepteam.vulnerabilities.utils import validate_vulnerability_types
 from deepteam.metrics import AutonomousAgentDriftMetric, BaseRedTeamingMetric
+from deepteam.metrics.types import EvaluationExample
 from deepteam.attacks.multi_turn.types import CallbackType
+from deepteam.attacks.attack_engine import AttackEngine
 from deepteam.test_case import RTTestCase
 from deepteam.attacks.attack_simulator.schema import SyntheticDataList
 from deepteam.risks import getRiskCategory
@@ -39,6 +41,7 @@ class AutonomousAgentDrift(BaseVulnerability):
         "Deviation of autonomous agents from intended goals or constraints without explicit attacker prompting, including goal drift, reward hacking, collusion, runaway autonomy, and cross-session objective persistence."
     )
     ALLOWED_TYPES = [type.value for type in AutonomousAgentDriftType]
+    category = "Agentic"
 
     def __init__(
         self,
@@ -52,6 +55,9 @@ class AutonomousAgentDrift(BaseVulnerability):
             type.value for type in AutonomousAgentDriftType
         ],
         purpose: Optional[str] = None,
+        evaluation_examples: Optional[List[EvaluationExample]] = None,
+        evaluation_guidelines: Optional[List[str]] = None,
+        attack_engine: Optional[AttackEngine] = None,
     ):
         enum_types = validate_vulnerability_types(
             self.get_name(), types=types, allowed_type=AutonomousAgentDriftType
@@ -61,7 +67,10 @@ class AutonomousAgentDrift(BaseVulnerability):
         self.simulator_model = simulator_model
         self.evaluation_model = evaluation_model
         self.purpose = purpose
+        self.evaluation_examples = evaluation_examples
+        self.evaluation_guidelines = evaluation_guidelines
         super().__init__(types=enum_types)
+        self.attack_engine = attack_engine
 
     def assess(
         self,
@@ -214,7 +223,7 @@ class AutonomousAgentDrift(BaseVulnerability):
                 ]
             )
 
-        return simulated_test_cases
+        return self._refine_simulated_attacks(simulated_test_cases, purpose)
 
     async def a_simulate_attacks(
         self,
@@ -250,7 +259,61 @@ class AutonomousAgentDrift(BaseVulnerability):
                 ]
             )
 
-        return simulated_test_cases
+        return await self._a_refine_simulated_attacks(
+            simulated_test_cases, purpose
+        )
+
+    def _assess_trace(
+        self,
+        trace: Trace,
+    ) -> List[BatchFinding]:
+        """
+        Evaluates an entire execution trace for Autonomous Agent Drift vulnerabilities using bottoms-up batching.
+        """
+        if self.async_mode:
+            loop = get_or_create_event_loop()
+            return loop.run_until_complete(
+                self._a_assess_trace(trace=trace)
+            )
+
+        self.evaluation_model, self.using_native_model = initialize_model(
+            self.evaluation_model
+        )
+        trace_scanner = TraceScanner(
+            model=self.evaluation_model,
+            template=AutonomousAgentDriftTemplate,
+        )
+
+        findings = trace_scanner.process_trace(trace)
+
+        self.trace_findings = findings
+        self.vulnerable = any(f.outcome == "materialized" for f in findings)
+
+        return findings
+
+    async def _a_assess_trace(
+        self,
+        trace: Trace,
+    ) -> List[BatchFinding]:
+        """
+        Asynchronously evaluates an entire execution trace for Autonomous Agent Drift vulnerabilities.
+        """
+        self.evaluation_model, self.using_native_model = initialize_model(
+            self.evaluation_model
+        )
+
+        trace_scanner = TraceScanner(
+            model=self.evaluation_model,
+            template=AutonomousAgentDriftTemplate,
+        )
+
+        findings = await trace_scanner.a_process_trace(trace)
+
+        self.trace_findings = findings
+        self.vulnerable = any(f.outcome == "materialized" for f in findings)
+
+        return findings
+
 
     def _generate_local_attacks(self, prompt: str) -> List[str]:
         if self.using_native_model:
@@ -299,6 +362,8 @@ class AutonomousAgentDrift(BaseVulnerability):
             model=self.evaluation_model,
             async_mode=self.async_mode,
             verbose_mode=self.verbose_mode,
+            evaluation_examples=self.evaluation_examples,
+            evaluation_guidelines=self.evaluation_guidelines,
         )
 
     def is_vulnerable(self) -> bool:

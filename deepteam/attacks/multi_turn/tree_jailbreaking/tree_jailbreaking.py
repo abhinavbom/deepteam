@@ -432,8 +432,8 @@ class TreeJailbreaking(BaseMultiTurnAttack):
             res: NonRefusal = generate(
                 non_refusal_prompt, NonRefusal, self.simulator_model
             )
-            classification = res.classification
-            if classification == "Refusal":
+            refusal = res.refusal
+            if refusal:
                 continue  # Skip this child
 
             # Generate a response from the target LLM
@@ -655,8 +655,8 @@ class TreeJailbreaking(BaseMultiTurnAttack):
         res: NonRefusal = await a_generate(
             non_refusal_prompt, NonRefusal, self.simulator_model
         )
-        classification = res.classification
-        if classification == "Refusal":
+        refusal = res.refusal
+        if refusal:
             return None  # Skip this child
 
         # Generate a response from the target LLM asynchronously

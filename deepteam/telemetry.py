@@ -49,51 +49,63 @@ def get_anonymous_public_ip():
 
 anonymous_public_ip = None
 
+_telemetry_available = False
+
 if not telemetry_opt_out():
-    from opentelemetry import trace
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-        OTLPSpanExporter,
-    )
+    try:
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+            OTLPSpanExporter,
+        )
 
-    anonymous_public_ip = get_anonymous_public_ip()
-    sentry_sdk.init(
-        dsn="https://5ef587d58109ee45d6544f3657efdd1f@o4506098477236224.ingest.sentry.io/4506098479136768",
-        profiles_sample_rate=1.0,
-        traces_sample_rate=1.0,  # For performance monitoring
-        send_default_pii=False,  # Don't send personally identifiable information
-        attach_stacktrace=False,  # Don't attach stack traces to messages
-        default_integrations=False,  # Disable Sentry's default integrations
-    )
+        anonymous_public_ip = get_anonymous_public_ip()
+        sentry_sdk.init(
+            dsn="https://5ef587d58109ee45d6544f3657efdd1f@o4506098477236224.ingest.sentry.io/4506098479136768",
+            profiles_sample_rate=1.0,
+            traces_sample_rate=1.0,  # For performance monitoring
+            send_default_pii=False,  # Don't send personally identifiable information
+            attach_stacktrace=False,  # Don't attach stack traces to messages
+            default_integrations=False,  # Disable Sentry's default integrations
+        )
 
-    # Set up the Tracer Provider
-    if not trace.get_tracer_provider().__class__.__name__ == "TracerProvider":
-        trace.set_tracer_provider(TracerProvider())
-    tracer_provider = trace.get_tracer_provider()
+        # Set up the Tracer Provider
+        if (
+            not trace.get_tracer_provider().__class__.__name__
+            == "TracerProvider"
+        ):
+            trace.set_tracer_provider(TracerProvider())
+        tracer_provider = trace.get_tracer_provider()
 
-    # New Relic License Key and OTLP Endpoint
-    NEW_RELIC_LICENSE_KEY = "1711c684db8a30361a7edb0d0398772cFFFFNRAL"
-    NEW_RELIC_OTLP_ENDPOINT = "https://otlp.nr-data.net:4317"
-    otlp_exporter = OTLPSpanExporter(
-        endpoint=NEW_RELIC_OTLP_ENDPOINT,
-        headers={"api-key": NEW_RELIC_LICENSE_KEY},
-    )
+        # New Relic License Key and OTLP Endpoint
+        NEW_RELIC_LICENSE_KEY = "1711c684db8a30361a7edb0d0398772cFFFFNRAL"
+        NEW_RELIC_OTLP_ENDPOINT = "https://otlp.nr-data.net:4317"
+        otlp_exporter = OTLPSpanExporter(
+            endpoint=NEW_RELIC_OTLP_ENDPOINT,
+            headers={"api-key": NEW_RELIC_LICENSE_KEY},
+        )
 
-    # Add the OTLP exporter to the span processor
-    span_processor = BatchSpanProcessor(otlp_exporter)
-    tracer_provider.add_span_processor(span_processor)
+        # Add the OTLP exporter to the span processor
+        span_processor = BatchSpanProcessor(otlp_exporter)
+        tracer_provider.add_span_processor(span_processor)
 
-    logging.getLogger("opentelemetry.exporter.otlp").setLevel(logging.CRITICAL)
+        logging.getLogger("opentelemetry.exporter.otlp").setLevel(
+            logging.CRITICAL
+        )
 
-    # Create a tracer for your application
-    tracer = trace.get_tracer(__name__)
+        # Create a tracer for your application
+        tracer = trace.get_tracer(__name__)
 
-    # Initialize PostHog
-    posthog = Posthog(
-        project_api_key="phc_IXvGRcscJJoIb049PtjIZ65JnXQguOUZ5B5MncunFdB",
-        host="https://us.i.posthog.com",
-    )
+        # Initialize PostHog
+        posthog = Posthog(
+            project_api_key="phc_IXvGRcscJJoIb049PtjIZ65JnXQguOUZ5B5MncunFdB",
+            host="https://us.i.posthog.com",
+        )
+
+        _telemetry_available = True
+    except ImportError:
+        pass
 
 
 if (
@@ -134,7 +146,7 @@ IS_RUNNING_IN_JUPYTER = (
 def capture_red_teamer_run(
     vulnerabilities: List[str], attacks: List[str], framework: str = None
 ):
-    if not telemetry_opt_out():
+    if _telemetry_available:
         with tracer.start_as_current_span(f"Invoked redteamer") as span:
             posthog.capture(
                 distinct_id=get_unique_id(), event=f"Invoked redteamer"
@@ -162,7 +174,7 @@ def capture_red_teamer_run(
 
 @contextmanager
 def capture_guardrail_run(type: str, guards: List[str]):
-    if not telemetry_opt_out():
+    if _telemetry_available:
         with tracer.start_as_current_span(f"Invoked guardrail") as span:
             posthog.capture(
                 distinct_id=get_unique_id(), event=f"Invoked guardrail"

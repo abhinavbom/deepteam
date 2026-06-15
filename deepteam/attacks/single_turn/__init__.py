@@ -1,4 +1,4 @@
-from .base_single_turn_attack import BaseSingleTurnAttack
+from .base_single_turn_attack import BaseSingleTurnAttack, AttackParameter
 from .adversarial_poetry import AdversarialPoetry
 from .base64 import Base64
 from .gray_box import GrayBox
@@ -26,6 +26,7 @@ from .context_poisoning.context_poisoning import ContextPoisoning
 
 __all__ = [
     "AdversarialPoetry",
+    "AttackParameter",
     "BaseSingleTurnAttack",
     "Base64",
     "GrayBox",

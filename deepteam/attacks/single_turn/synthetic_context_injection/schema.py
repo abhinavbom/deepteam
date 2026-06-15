@@ -6,9 +6,5 @@ class EnhancedContext(BaseModel):
     input: str
 
 
-class ComplianceData(BaseModel):
-    non_compliant: bool
-
-
 class IsContextValid(BaseModel):
     is_valid_context: bool

@@ -14,6 +14,7 @@ from deepteam.vulnerabilities import BaseVulnerability
 from deepteam.attacks.multi_turn.types import CallbackType
 from deepteam.errors import ModelRefusalError
 from deepteam.test_case import RTTestCase
+from deepteam.attacks.attack_engine import AttackEngine
 
 
 class BaselineAttack:
@@ -32,6 +33,7 @@ class AttackSimulator:
         purpose: str,
         max_concurrent: int,
         simulator_model: Optional[Union[str, DeepEvalBaseLLM]] = None,
+        attack_engine: Optional[AttackEngine] = None,
     ):
         # Initialize models and async mode
         self.purpose = purpose
@@ -41,6 +43,7 @@ class AttackSimulator:
         # Define list of attacks and unaligned vulnerabilities
         self.test_cases: List[RTTestCase] = []
         self.max_concurrent = max_concurrent
+        self.attack_engine = attack_engine
 
     ##################################################
     ### Generating Attacks ###########################
@@ -71,6 +74,8 @@ class AttackSimulator:
             for vulnerability in vulnerabilities:
                 if simulator_model is not None:
                     vulnerability.simulator_model = simulator_model
+                if self.attack_engine is not None:
+                    vulnerability.attack_engine = self.attack_engine
                 test_cases.extend(
                     self.simulate_baseline_attacks(
                         attacks_per_vulnerability_type=attacks_per_vulnerability_type,
@@ -135,6 +140,8 @@ class AttackSimulator:
             async def throttled_simulate_baseline_attack(vulnerability):
                 if simulator_model is not None:
                     vulnerability.simulator_model = simulator_model
+                if self.attack_engine is not None:
+                    vulnerability.attack_engine = self.attack_engine
                 async with semaphore:  # Throttling applied here
                     result = await self.a_simulate_baseline_attacks(
                         attacks_per_vulnerability_type=attacks_per_vulnerability_type,

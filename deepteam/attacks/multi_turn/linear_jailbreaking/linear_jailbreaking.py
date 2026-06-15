@@ -140,7 +140,7 @@ class LinearJailbreaking(BaseMultiTurnAttack):
                     non_refusal_prompt, NonRefusal, self.simulator_model
                 )
 
-                if non_refusal_res.classification == "Refusal":
+                if non_refusal_res.refusal:
                     update_pbar(progress, task_id, advance_to_end=True)
                     raise ModelRefusalError(entity=self.get_name())
 
@@ -246,7 +246,7 @@ class LinearJailbreaking(BaseMultiTurnAttack):
                     non_refusal_prompt, NonRefusal, self.simulator_model
                 )
 
-                if non_refusal_res.classification == "Refusal":
+                if non_refusal_res.refusal:
                     update_pbar(progress, task_id, advance_to_end=True)
                     raise ModelRefusalError(entity=self.get_name())
 

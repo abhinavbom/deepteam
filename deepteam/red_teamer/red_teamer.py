@@ -35,6 +35,7 @@ from deepteam.red_teamer.utils import (
 from deepteam.vulnerabilities import BaseVulnerability
 from deepteam.vulnerabilities.types import VulnerabilityType
 from deepteam.attacks.attack_simulator import AttackSimulator
+from deepteam.attacks.attack_engine import AttackEngine
 from deepteam.attacks.multi_turn.types import CallbackType
 from deepteam.metrics import BaseRedTeamingMetric
 from deepteam.red_teamer.risk_assessment import (
@@ -59,6 +60,7 @@ class RedTeamer:
         target_purpose: Optional[str] = "",
         async_mode: bool = True,
         max_concurrent: int = 10,
+        attack_engine: Optional[AttackEngine] = None,
     ):
         self.target_purpose = target_purpose
         self.simulator_model, _ = initialize_model(simulator_model)
@@ -66,10 +68,26 @@ class RedTeamer:
         self.async_mode = async_mode
         self.synthetic_goldens: List[Golden] = []
         self.max_concurrent = max_concurrent
+        self.user_attack_engine = attack_engine
         self.attack_simulator = AttackSimulator(
             simulator_model=self.simulator_model,
             purpose=self.target_purpose,
             max_concurrent=max_concurrent,
+        )
+
+    def _resolve_attack_engine(
+        self, attack_engine: Optional[AttackEngine]
+    ) -> AttackEngine:
+        if attack_engine is not None:
+            return attack_engine
+        if self.user_attack_engine is not None:
+            return self.user_attack_engine
+        purpose = self.target_purpose or None
+        if purpose == "":
+            purpose = None
+        return AttackEngine(
+            simulator_model=self.simulator_model,
+            purpose=purpose,
         )
 
     def red_team(
@@ -84,6 +102,7 @@ class RedTeamer:
         ignore_errors: bool = True,
         reuse_simulated_test_cases: bool = False,
         metadata: Optional[dict] = None,
+        attack_engine: Optional[AttackEngine] = None,
         _print_assessment: Optional[bool] = True,
         _upload_to_confident: Optional[bool] = True,
     ):
@@ -124,6 +143,7 @@ class RedTeamer:
                     ignore_errors=ignore_errors,
                     reuse_simulated_test_cases=reuse_simulated_test_cases,
                     metadata=metadata,
+                    attack_engine=attack_engine,
                     _print_assessment=_print_assessment,
                 )
             )
@@ -185,6 +205,10 @@ class RedTeamer:
                         simulated_test_cases = framework.test_cases
                     else:
                         self.attack_simulator.model_callback = model_callback
+                        if vulnerabilities:
+                            self.attack_simulator.attack_engine = (
+                                self._resolve_attack_engine(attack_engine)
+                            )
                         simulated_test_cases: List[RTTestCase] = (
                             self.attack_simulator.simulate(
                                 attacks_per_vulnerability_type=attacks_per_vulnerability_type,
@@ -294,6 +318,7 @@ class RedTeamer:
         ignore_errors: bool = False,
         reuse_simulated_test_cases: bool = False,
         metadata: Optional[dict] = None,
+        attack_engine: Optional[AttackEngine] = None,
         _print_assessment: Optional[bool] = True,
         _upload_to_confident: Optional[bool] = True,
     ):
@@ -376,6 +401,10 @@ class RedTeamer:
                     simulated_test_cases = framework.test_cases
                 else:
                     self.attack_simulator.model_callback = model_callback
+                    if vulnerabilities:
+                        self.attack_simulator.attack_engine = (
+                            self._resolve_attack_engine(attack_engine)
+                        )
                     simulated_test_cases: List[RTTestCase] = (
                         await self.attack_simulator.a_simulate(
                             attacks_per_vulnerability_type=attacks_per_vulnerability_type,

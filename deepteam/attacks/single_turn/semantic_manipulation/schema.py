@@ -6,9 +6,5 @@ class EnhancedConfusion(BaseModel):
     input: str
 
 
-class ComplianceData(BaseModel):
-    non_compliant: bool
-
-
 class IsConfusionValid(BaseModel):
     is_valid_confusion: bool

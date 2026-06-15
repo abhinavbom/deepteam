@@ -6,9 +6,5 @@ class EnhancedInjection(BaseModel):
     input: str
 
 
-class ComplianceData(BaseModel):
-    non_compliant: bool
-
-
 class IsValidInjection(BaseModel):
     is_valid_injection: bool

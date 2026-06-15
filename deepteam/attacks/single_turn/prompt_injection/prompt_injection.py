@@ -11,8 +11,11 @@ from deepteam.attacks.single_turn.prompt_injection.template import (
 )
 from deepteam.attacks.single_turn.prompt_injection.schema import (
     EnhancedInjection,
-    ComplianceData,
     IsValidInjection,
+)
+from deepteam.attacks.single_turn.compliance import (
+    evaluate_generation_compliance,
+    a_evaluate_generation_compliance,
 )
 from deepteam.attacks.attack_simulator.utils import (
     generate,
@@ -54,11 +57,8 @@ class PromptInjection(BaseSingleTurnAttack):
 
                 update_pbar(progress, task_id)
 
-                compliance_prompt = PromptInjectionTemplate.non_compliant(
-                    res.model_dump()
-                )
-                compliance_res: ComplianceData = generate(
-                    compliance_prompt, ComplianceData, self.simulator_model
+                compliance_res = evaluate_generation_compliance(
+                    res.model_dump(), self.simulator_model
                 )
                 update_pbar(progress, task_id)
 
@@ -107,13 +107,8 @@ class PromptInjection(BaseSingleTurnAttack):
                     enhanced_prompt = res.input
                     update_pbar(progress, task_id)
 
-                    compliance_prompt = PromptInjectionTemplate.non_compliant(
-                        res.model_dump()
-                    )
-                    compliance_res: ComplianceData = await a_generate(
-                        compliance_prompt,
-                        ComplianceData,
-                        self.simulator_model,
+                    compliance_res = await a_evaluate_generation_compliance(
+                        res.model_dump(), self.simulator_model
                     )
                     update_pbar(progress, task_id)
 

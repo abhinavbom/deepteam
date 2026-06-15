@@ -1,80 +1,101 @@
 from typing import List, Literal
 from deepteam.frameworks import AISafetyFramework
-from deepteam.vulnerabilities import BaseVulnerability
-from deepteam.attacks import BaseAttack
-from deepteam.frameworks.eu_ai_act.risk_categories import EU_AI_ACT_CATEGORIES
+from deepteam.frameworks.eu_ai_act.risk_categories import (
+    EU_AI_ACT_CATEGORIES,
+)
 
 """
-EU Artificial Intelligence Act (EU AI Act)
-==========================================
+EU Artificial Intelligence Act (Regulation (EU) 2024/1689)
+==========================================================
 
-The EU AI Act is the European Union's comprehensive regulatory framework for artificial
-intelligence, establishing harmonized rules for the development, placement on the market,
-and use of AI systems. It is the world's first comprehensive AI law, with enforcement
-beginning in 2025 and full high-risk system compliance required by August 2026.
+The EU AI Act is the world's first comprehensive legal framework for artificial intelligence.
+It adopts a risk-based approach, classifying AI systems by the level of risk they pose to
+health, safety, and fundamental rights, and imposing proportionate obligations on providers
+and deployers.
 
-DeepTeam's implementation covers the key testable obligations across 8 categories mapped
-to the regulation's core articles:
+DeepTeam's EU AI Act module operationalises two of the central risk tiers of the Act so you
+can red-team AI systems against the obligations that matter most in practice:
 
-- Article 5 (EUAI_01): Prohibited practices — subliminal manipulation, vulnerability exploitation
-- Article 10 (EUAI_02): Bias & non-discrimination — fairness, ethics, protected characteristics
-- Article 15 (EUAI_03): Robustness & cybersecurity — adversarial resilience, injection attacks
-- Article 13 (EUAI_04): Transparency & explainability — AI disclosure, capability representation
-- Article 14 (EUAI_05): Human oversight — automation bias, override support
-- Articles 10 & 12 (EUAI_06): Data governance & privacy — PII protection, data provenance
-- Articles 5 & 9 (EUAI_07): Child & vulnerable group protection — age-appropriate content, safety
-- Article 9 (EUAI_08): Fundamental rights & safety — illegal activity, IP, access control
+- Article 5 — Prohibited AI practices (unacceptable risk):
+    1. Art. 5(1)(a) Subliminal Manipulation
+    2. Art. 5(1)(b) Exploitation of Vulnerabilities
+    3. Art. 5(1)(c) Social Scoring
+    4. Art. 5(1)(g) Biometric Categorisation
+    5. Art. 5(1)(h) Real-time Remote Biometric Identification
+    6. Art. 5      Post Remote Biometric Identification
 
-Each category includes attacks and vulnerabilities that test an AI system's compliance with
-the corresponding regulatory requirements.
+- Annex III — High-risk AI systems (Art. 6(2)):
+    1. §1 Biometric Identification
+    2. §2 Critical Infrastructure
+    3. §3 Education and Vocational Training
+    4. §4 Employment and Workers Management
+    5. §5 Essential Private and Public Services
+    6. §6 Law Enforcement
+    7. §7 Migration, Asylum and Border Control
+    8. §8 Administration of Justice and Democratic Processes
+
+Each category includes:
+- Attacks: Adversarial techniques chosen to stress the specific risk addressed by that article
+- Vulnerabilities: DeepTeam vulnerability classes whose behaviours correspond to the article
 
 Reference: https://artificialintelligenceact.eu/
 """
 
 
 class EUAIAct(AISafetyFramework):
-    name = "EU AI Act"
-    description = (
-        "European Union Artificial Intelligence Act — compliance testing framework "
-        "covering prohibited practices (Art. 5), bias and non-discrimination (Art. 10), "
-        "robustness and cybersecurity (Art. 15), transparency and explainability (Art. 13), "
-        "human oversight (Art. 14), data governance and privacy (Art. 10/12), "
-        "child and vulnerable group protection (Art. 5/9), and fundamental rights "
-        "and safety (Art. 9)."
-    )
+    name = "EU Artificial Intelligence Act"
+    description = "A risk-based AI regulation operationalised in DeepTeam across Article 5 prohibited practices (subliminal manipulation, exploitation of vulnerabilities, social scoring, biometric categorisation, real-time and post remote biometric identification) and Annex III high-risk AI systems (biometric identification, critical infrastructure, education, employment, essential services, law enforcement, migration/border control, and administration of justice and democracy)."
     ALLOWED_TYPES = [
-        "euai_01",
-        "euai_02",
-        "euai_03",
-        "euai_04",
-        "euai_05",
-        "euai_06",
-        "euai_07",
-        "euai_08",
+        "subliminal_manipulation",
+        "exploitation_of_vulnerabilities",
+        "social_scoring",
+        "biometric_categorisation",
+        "remote_biometric_id_live",
+        "remote_biometric_id_post",
+        "biometric_id",
+        "critical_infrastructure",
+        "education",
+        "employment",
+        "essential_services",
+        "law_enforcement",
+        "migration_border",
+        "justice_democracy",
     ]
 
     def __init__(
         self,
         categories: List[
             Literal[
-                "euai_01",
-                "euai_02",
-                "euai_03",
-                "euai_04",
-                "euai_05",
-                "euai_06",
-                "euai_07",
-                "euai_08",
+                "subliminal_manipulation",
+                "exploitation_of_vulnerabilities",
+                "social_scoring",
+                "biometric_categorisation",
+                "remote_biometric_id_live",
+                "remote_biometric_id_post",
+                "biometric_id",
+                "critical_infrastructure",
+                "education",
+                "employment",
+                "essential_services",
+                "law_enforcement",
+                "migration_border",
+                "justice_democracy",
             ]
         ] = [
-            "euai_01",
-            "euai_02",
-            "euai_03",
-            "euai_04",
-            "euai_05",
-            "euai_06",
-            "euai_07",
-            "euai_08",
+            "subliminal_manipulation",
+            "exploitation_of_vulnerabilities",
+            "social_scoring",
+            "biometric_categorisation",
+            "remote_biometric_id_live",
+            "remote_biometric_id_post",
+            "biometric_id",
+            "critical_infrastructure",
+            "education",
+            "employment",
+            "essential_services",
+            "law_enforcement",
+            "migration_border",
+            "justice_democracy",
         ],
     ):
         self.categories = categories

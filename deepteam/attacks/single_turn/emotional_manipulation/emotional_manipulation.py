@@ -4,15 +4,18 @@ from deepeval.models import DeepEvalBaseLLM
 from deepeval.metrics.utils import initialize_model
 
 from deepteam.utils import create_progress, update_pbar, add_pbar
-from deepteam.attacks.single_turn import BaseSingleTurnAttack
+from deepteam.attacks.single_turn import BaseSingleTurnAttack, AttackParameter
 from deepteam.attacks.base_attack import Exploitability
 from deepteam.attacks.single_turn.emotional_manipulation.template import (
     EmotionalManipulationTemplate,
 )
 from deepteam.attacks.single_turn.emotional_manipulation.schema import (
     EmotionallyEnhancedAttack,
-    ComplianceData,
     IsEmotionalAttackValid,
+)
+from deepteam.attacks.single_turn.compliance import (
+    evaluate_generation_compliance,
+    a_evaluate_generation_compliance,
 )
 from deepteam.attacks.attack_simulator.utils import (
     generate,
@@ -26,6 +29,19 @@ class EmotionalManipulation(BaseSingleTurnAttack):
     name = "Emotional Manipulation"
     exploitability = Exploitability.HIGH
     description = "Rewrites the attack by wrapping it in a high-intensity emotional narrative (Anger, Pity, Urgency) to bypass safety filters."
+    parameters = {
+        "emotion": AttackParameter(
+            type="enum",
+            options=[
+                "ANGER",
+                "PITY",
+                "CONFUSION",
+                "AUTHORITY",
+                "URGENCY",
+            ],
+            description="Emotional strategy applied while rewriting the attack.",
+        )
+    }
 
     def __init__(
         self,
@@ -61,11 +77,8 @@ class EmotionalManipulation(BaseSingleTurnAttack):
                 enhanced_prompt = res.input
                 update_pbar(progress, task_id)
 
-                compliance_prompt = EmotionalManipulationTemplate.non_compliant(
-                    res.model_dump()
-                )
-                compliance_res: ComplianceData = generate(
-                    compliance_prompt, ComplianceData, self.simulator_model
+                compliance_res = evaluate_generation_compliance(
+                    res.model_dump(), self.simulator_model
                 )
                 update_pbar(progress, task_id)
 
@@ -118,15 +131,8 @@ class EmotionalManipulation(BaseSingleTurnAttack):
                     enhanced_prompt = res.input
                     update_pbar(progress, task_id)
 
-                    compliance_prompt = (
-                        EmotionalManipulationTemplate.non_compliant(
-                            res.model_dump()
-                        )
-                    )
-                    compliance_res: ComplianceData = await a_generate(
-                        compliance_prompt,
-                        ComplianceData,
-                        self.simulator_model,
+                    compliance_res = await a_evaluate_generation_compliance(
+                        res.model_dump(), self.simulator_model
                     )
                     update_pbar(progress, task_id)
 

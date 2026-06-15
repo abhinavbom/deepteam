@@ -11,8 +11,11 @@ from deepteam.attacks.single_turn.math_problem.template import (
 )
 from deepteam.attacks.single_turn.math_problem.schema import (
     EnhancedAttack,
-    ComplianceData,
     IsMathProblem,
+)
+from deepteam.attacks.single_turn.compliance import (
+    evaluate_generation_compliance,
+    a_evaluate_generation_compliance,
 )
 from deepteam.attacks.attack_simulator.utils import (
     generate,
@@ -61,11 +64,8 @@ class MathProblem(BaseSingleTurnAttack):
                 )  # Update the progress bar for generation
 
                 # Check for compliance using a compliance template
-                compliance_prompt = MathProblemTemplate.non_compliant(
-                    res.model_dump()
-                )
-                compliance_res: ComplianceData = generate(
-                    compliance_prompt, ComplianceData, self.simulator_model
+                compliance_res = evaluate_generation_compliance(
+                    res.model_dump(), self.simulator_model
                 )
                 update_pbar(
                     progress, task_id
@@ -125,11 +125,8 @@ class MathProblem(BaseSingleTurnAttack):
                     )  # Update the progress bar for generation
 
                     # Check for compliance using a compliance template
-                    compliance_prompt = MathProblemTemplate.non_compliant(
-                        res.model_dump()
-                    )
-                    compliance_res: ComplianceData = await a_generate(
-                        compliance_prompt, ComplianceData, self.simulator_model
+                    compliance_res = await a_evaluate_generation_compliance(
+                        res.model_dump(), self.simulator_model
                     )
                     update_pbar(
                         progress, task_id

@@ -45,6 +45,9 @@ from .goal_theft.goal_theft import GoalTheft
 from .recursive_hijacking.recursive_hijacking import RecursiveHijacking
 from .robustness.robustness import Robustness
 from .excessive_agency.excessive_agency import ExcessiveAgency
+from .hallucination.hallucination import Hallucination
+
+from deepteam.metrics import EvaluationExample
 
 __all__ = [
     "BaseVulnerability",
@@ -84,4 +87,6 @@ __all__ = [
     "RecursiveHijacking",
     "Robustness",
     "ExcessiveAgency",
+    "Hallucination",
+    "EvaluationExample",
 ]

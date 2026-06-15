@@ -4,15 +4,18 @@ from deepeval.models import DeepEvalBaseLLM
 from deepeval.metrics.utils import initialize_model
 
 from deepteam.utils import create_progress, update_pbar, add_pbar
-from deepteam.attacks.single_turn import BaseSingleTurnAttack
+from deepteam.attacks.single_turn import BaseSingleTurnAttack, AttackParameter
 from deepteam.attacks.base_attack import Exploitability
 from deepteam.attacks.single_turn.synthetic_context_injection.template import (
     SyntheticContextInjectionTemplate,
 )
 from deepteam.attacks.single_turn.synthetic_context_injection.schema import (
     EnhancedContext,
-    ComplianceData,
     IsContextValid,
+)
+from deepteam.attacks.single_turn.compliance import (
+    evaluate_generation_compliance,
+    a_evaluate_generation_compliance,
 )
 from deepteam.attacks.attack_simulator.utils import (
     generate,
@@ -24,6 +27,17 @@ class SyntheticContextInjection(BaseSingleTurnAttack):
     name = "Synthetic Context Injection"
     exploitability = Exploitability.HIGH
     description = "Generates domain-specific 'fake history' that mimics internal company logs, emails, and verification states."
+    parameters = {
+        "target_information": AttackParameter(
+            type="string",
+            required=True,
+            description="Target information the synthetic context should center around.",
+        ),
+        "context_style": AttackParameter(
+            type="string",
+            description="Optional style or domain framing for generated context.",
+        ),
+    }
 
     def __init__(
         self,
@@ -64,13 +78,8 @@ class SyntheticContextInjection(BaseSingleTurnAttack):
                 generated_context = res.input
                 update_pbar(progress, task_id)
 
-                compliance_prompt = (
-                    SyntheticContextInjectionTemplate.non_compliant(
-                        res.model_dump()
-                    )
-                )
-                compliance_res: ComplianceData = generate(
-                    compliance_prompt, ComplianceData, self.simulator_model
+                compliance_res = evaluate_generation_compliance(
+                    res.model_dump(), self.simulator_model
                 )
                 update_pbar(progress, task_id)
 
@@ -126,15 +135,8 @@ class SyntheticContextInjection(BaseSingleTurnAttack):
                     generated_context = res.input
                     update_pbar(progress, task_id)
 
-                    compliance_prompt = (
-                        SyntheticContextInjectionTemplate.non_compliant(
-                            res.model_dump()
-                        )
-                    )
-                    compliance_res: ComplianceData = await a_generate(
-                        compliance_prompt,
-                        ComplianceData,
-                        self.simulator_model,
+                    compliance_res = await a_evaluate_generation_compliance(
+                        res.model_dump(), self.simulator_model
                     )
                     update_pbar(progress, task_id)
 

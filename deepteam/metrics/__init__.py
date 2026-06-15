@@ -1,4 +1,5 @@
 from .base_red_teaming_metric import BaseRedTeamingMetric
+from .types import EvaluationExample
 
 from .contracts.contracts import ContractsMetric
 from .debug_access.debug_access import DebugAccessMetric

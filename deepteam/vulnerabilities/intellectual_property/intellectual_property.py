@@ -13,11 +13,16 @@ from deepteam.vulnerabilities.intellectual_property import (
 )
 from deepteam.vulnerabilities.utils import validate_vulnerability_types
 from deepteam.metrics import IntellectualPropertyMetric, BaseRedTeamingMetric
+from deepteam.metrics.types import EvaluationExample
 from deepteam.attacks.multi_turn.types import CallbackType
+from deepteam.attacks.attack_engine import AttackEngine
 from deepteam.test_case import RTTestCase
 from deepteam.attacks.attack_simulator.schema import SyntheticDataList
 from deepteam.risks import getRiskCategory
 from .template import IntellectualPropertyTemplate
+from deepeval.tracing.types import Trace
+from deepteam.trace_scanner.schema import BatchFinding
+from deepteam.trace_scanner import TraceScanner
 
 IntellectualPropertyLiteral = Literal[
     "imitation",
@@ -31,6 +36,7 @@ class IntellectualProperty(BaseVulnerability):
     name: str = "Intellectual Property"
     description = "Copyright violations, trademark infringement, or imitation of protected intellectual property without authorization."
     ALLOWED_TYPES = [type.value for type in IntellectualPropertyType]
+    category = "Business"
 
     def __init__(
         self,
@@ -44,6 +50,9 @@ class IntellectualProperty(BaseVulnerability):
             type.value for type in IntellectualPropertyType
         ],
         purpose: Optional[str] = None,
+        evaluation_examples: Optional[List[EvaluationExample]] = None,
+        evaluation_guidelines: Optional[List[str]] = None,
+        attack_engine: Optional[AttackEngine] = None,
     ):
         enum_types = validate_vulnerability_types(
             self.get_name(), types=types, allowed_type=IntellectualPropertyType
@@ -53,7 +62,10 @@ class IntellectualProperty(BaseVulnerability):
         self.simulator_model = simulator_model
         self.evaluation_model = evaluation_model
         self.purpose = purpose
+        self.evaluation_examples = evaluation_examples
+        self.evaluation_guidelines = evaluation_guidelines
         super().__init__(types=enum_types)
+        self.attack_engine = attack_engine
 
     def assess(
         self,
@@ -223,7 +235,7 @@ class IntellectualProperty(BaseVulnerability):
                 ]
             )
 
-        return simulated_test_cases
+        return self._refine_simulated_attacks(simulated_test_cases, purpose)
 
     async def a_simulate_attacks(
         self,
@@ -279,7 +291,61 @@ class IntellectualProperty(BaseVulnerability):
                 ]
             )
 
-        return simulated_test_cases
+        return await self._a_refine_simulated_attacks(
+            simulated_test_cases, purpose
+        )
+
+    def _assess_trace(
+        self,
+        trace: Trace,
+    ) -> List[BatchFinding]:
+        """
+        Evaluates an entire execution trace for Intellectual Property vulnerabilities using bottoms-up batching.
+        """
+        if self.async_mode:
+            loop = get_or_create_event_loop()
+            return loop.run_until_complete(
+                self._a_assess_trace(trace=trace)
+            )
+
+        self.evaluation_model, self.using_native_model = initialize_model(
+            self.evaluation_model
+        )
+        trace_scanner = TraceScanner(
+            model=self.evaluation_model,
+            template=IntellectualPropertyTemplate,
+        )
+
+        findings = trace_scanner.process_trace(trace)
+
+        self.trace_findings = findings
+        self.vulnerable = any(f.outcome == "materialized" for f in findings)
+
+        return findings
+
+    async def _a_assess_trace(
+        self,
+        trace: Trace,
+    ) -> List[BatchFinding]:
+        """
+        Asynchronously evaluates an entire execution trace for Intellectual Property vulnerabilities.
+        """
+        self.evaluation_model, self.using_native_model = initialize_model(
+            self.evaluation_model
+        )
+
+        trace_scanner = TraceScanner(
+            model=self.evaluation_model,
+            template=IntellectualPropertyTemplate,
+        )
+
+        findings = await trace_scanner.a_process_trace(trace)
+
+        self.trace_findings = findings
+        self.vulnerable = any(f.outcome == "materialized" for f in findings)
+
+        return findings
+
 
     def _get_metric(
         self,
@@ -290,6 +356,8 @@ class IntellectualProperty(BaseVulnerability):
             model=self.evaluation_model,
             async_mode=self.async_mode,
             verbose_mode=self.verbose_mode,
+            evaluation_examples=self.evaluation_examples,
+            evaluation_guidelines=self.evaluation_guidelines,
         )
 
     def is_vulnerable(self) -> bool:

@@ -268,7 +268,7 @@ class SequentialJailbreak(BaseMultiTurnAttack):
                 non_refusal_res: NonRefusal = generate(
                     non_refusal_prompt, NonRefusal, self.simulator_model
                 )
-                if non_refusal_res.classification == "Refusal":
+                if non_refusal_res.refusal:
                     update_pbar(progress, task_id, advance_to_end=True)
                     return turns
 
@@ -283,7 +283,7 @@ class SequentialJailbreak(BaseMultiTurnAttack):
                     judge_res: QuestionBankJudge = generate(
                         judge_prompt, QuestionBankJudge, self.simulator_model
                     )
-                    eval_flag = judge_res.classification == "Harmful"
+                    eval_flag = judge_res.harmful
                     eval_percentage = getattr(judge_res, "score", 0)
                 elif self.attack_type == "game_environment":
                     judge_prompt = (
@@ -297,7 +297,7 @@ class SequentialJailbreak(BaseMultiTurnAttack):
                     judge_res: GameEnvironmentJudge = generate(
                         judge_prompt, GameEnvironmentJudge, self.simulator_model
                     )
-                    eval_flag = judge_res.classification == "Harmful"
+                    eval_flag = judge_res.harmful
                     eval_percentage = getattr(judge_res, "score", 0)
                 else:
                     judge_prompt = SequentialBreakTemplate.dialogue_judge(
@@ -309,7 +309,7 @@ class SequentialJailbreak(BaseMultiTurnAttack):
                     judge_res: DialogueJudge = generate(
                         judge_prompt, DialogueJudge, self.simulator_model
                     )
-                    eval_flag = judge_res.classification == "Harmful"
+                    eval_flag = judge_res.harmful
                     eval_percentage = getattr(judge_res, "score", 0)
 
                 # Stop when harmful response is generated
@@ -322,7 +322,7 @@ class SequentialJailbreak(BaseMultiTurnAttack):
                     return turns
 
                 # Escalate: Improve the base attack for next iteration (gradually introduce more specificity)
-                judge_feedback = f"Classification: {judge_res.classification}"
+                judge_feedback = f"Harmful: {judge_res.harmful}"
                 if hasattr(judge_res, "reasoning"):
                     judge_feedback += f"\nReasoning: {judge_res.reasoning}"
 
@@ -548,7 +548,7 @@ class SequentialJailbreak(BaseMultiTurnAttack):
                 non_refusal_res: NonRefusal = await a_generate(
                     non_refusal_prompt, NonRefusal, self.simulator_model
                 )
-                if non_refusal_res.classification == "Refusal":
+                if non_refusal_res.refusal:
                     update_pbar(progress, task_id, advance_to_end=True)
                     return turns
 
@@ -563,7 +563,7 @@ class SequentialJailbreak(BaseMultiTurnAttack):
                     judge_res: QuestionBankJudge = await a_generate(
                         judge_prompt, QuestionBankJudge, self.simulator_model
                     )
-                    eval_flag = judge_res.classification == "Harmful"
+                    eval_flag = judge_res.harmful
                 elif self.attack_type == "game_environment":
                     judge_prompt = (
                         SequentialBreakTemplate.game_environment_judge(
@@ -576,7 +576,7 @@ class SequentialJailbreak(BaseMultiTurnAttack):
                     judge_res: GameEnvironmentJudge = await a_generate(
                         judge_prompt, GameEnvironmentJudge, self.simulator_model
                     )
-                    eval_flag = judge_res.classification == "Harmful"
+                    eval_flag = judge_res.harmful
                 else:
                     judge_prompt = SequentialBreakTemplate.dialogue_judge(
                         original_attack,
@@ -587,7 +587,7 @@ class SequentialJailbreak(BaseMultiTurnAttack):
                     judge_res: DialogueJudge = await a_generate(
                         judge_prompt, DialogueJudge, self.simulator_model
                     )
-                    eval_flag = judge_res.classification == "Harmful"
+                    eval_flag = judge_res.harmful
 
                 # Stop when harmful response is generated
                 if eval_flag:
@@ -599,7 +599,7 @@ class SequentialJailbreak(BaseMultiTurnAttack):
                     return turns
 
                 # Escalate: Improve the base attack for next iteration (gradually introduce more specificity)
-                judge_feedback = f"Classification: {judge_res.classification}"
+                judge_feedback = f"Harmful: {judge_res.harmful}"
                 if hasattr(judge_res, "reasoning"):
                     judge_feedback += f"\nReasoning: {judge_res.reasoning}"
 

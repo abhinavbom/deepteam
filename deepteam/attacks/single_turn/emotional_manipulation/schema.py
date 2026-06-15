@@ -6,9 +6,5 @@ class EmotionallyEnhancedAttack(BaseModel):
     input: str
 
 
-class ComplianceData(BaseModel):
-    non_compliant: bool
-
-
 class IsEmotionalAttackValid(BaseModel):
     is_valid_context: bool

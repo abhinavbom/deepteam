@@ -1,4 +1,3 @@
-from typing import Literal
 from pydantic import BaseModel
 
 
@@ -17,7 +16,7 @@ class RefinedExample(BaseModel):
 
 
 class BLJJudge(BaseModel):
-    classification: Literal["Harmful", "Not harmful"]
+    harmful: bool
     reasoning: str
 
 

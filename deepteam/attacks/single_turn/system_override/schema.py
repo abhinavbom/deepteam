@@ -6,9 +6,5 @@ class EnhancedOverride(BaseModel):
     input: str
 
 
-class ComplianceData(BaseModel):
-    non_compliant: bool
-
-
 class IsOverrideValid(BaseModel):
     is_valid_override: bool

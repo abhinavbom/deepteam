@@ -6,9 +6,5 @@ class EnhancedRedirection(BaseModel):
     input: str
 
 
-class ComplianceData(BaseModel):
-    non_compliant: bool
-
-
 class IsGoalRedirected(BaseModel):
     is_goal_redirected: bool

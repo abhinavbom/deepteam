@@ -6,9 +6,5 @@ class EnhancedBypass(BaseModel):
     input: str
 
 
-class ComplianceData(BaseModel):
-    non_compliant: bool
-
-
 class IsBypassValid(BaseModel):
     is_valid_bypass: bool
