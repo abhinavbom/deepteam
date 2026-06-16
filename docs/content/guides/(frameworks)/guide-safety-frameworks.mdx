@@ -19,7 +19,7 @@ DeepTeam supports two types of frameworks: **category-based** frameworks that ma
 | ------------------------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | OWASP Top 10 for LLMs 2025                 | `OWASPTop10`     | `LLM_01` – `LLM_10`                                                                                       | Broad LLM security risks: prompt injection, data leakage, excessive agency, misinformation   |
 | OWASP Top 10 for Agentic Applications 2026 | `OWASP_ASI_2026` | `ASI_01` – `ASI_10`                                                                                       | Agent-specific risks: tool abuse, goal drift, inter-agent communication, autonomous behavior |
-| NIST AI RMF                                | `NIST`           | `measure_1` – `measure_4`                                                                                 | Risk management measurement lanes aligned with the NIST AI Risk Management Framework         |
+| NIST AI RMF                                | `NIST`           | `measurement_methods`, `validity_reliability`, `safety`, `security_resilience`, `privacy`, `fairness_bias`, `emergent_risk`, `impact_transparency` | Prompt-testable NIST AI RMF MEASURE subcategories: validity, safety, security, privacy, fairness, emergent risk, transparency |
 | MITRE ATLAS                                | `MITRE`          | `reconnaissance`, `resource_development`, `initial_access`, `ml_attack_staging`, `exfiltration`, `impact` | Adversary tactics mapped from the MITRE ATLAS threat matrix                                  |
 
 Each category within a framework maps to a specific set of vulnerabilities and attack techniques. When you run a framework assessment, DeepTeam executes red teaming for each category independently and aggregates the results.
@@ -110,12 +110,12 @@ Use `OWASP_ASI_2026` when red teaming AI agents, tool-calling systems, or multi-
 ```python
 from deepteam.frameworks import NIST
 
-framework = NIST(categories=["measure_1", "measure_2"])
+framework = NIST(categories=["security_resilience", "safety"])
 
 red_team(model_callback=model_callback, framework=framework)
 ```
 
-The NIST AI RMF framework maps to four measurement lanes (`measure_1` through `measure_4`), each covering different aspects of AI risk management.
+The NIST AI RMF framework maps to eight prompt-testable MEASURE categories (`measurement_methods` through `impact_transparency`), each pinned to a NIST AI RMF MEASURE subcategory.
 
 ### MITRE ATLAS
 
