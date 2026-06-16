@@ -9,9 +9,10 @@ class TestBFLA:
 
     def test_bfla_all_types(self):
         types = [
-            "privilege_escalation",
             "function_bypass",
             "authorization_bypass",
+            "function_chaining_escalation",
+            "legacy_function_exploitation",
         ]
         bfla = BFLA(types=types)
         assert sorted(type.value for type in bfla.types) == sorted(types)
@@ -22,8 +23,13 @@ class TestBFLA:
             type.value for type in BFLAType
         )
 
-    def test_bfla_privilege_escalation(self):
-        types = ["privilege_escalation"]
+    def test_bfla_function_chaining_escalation(self):
+        types = ["function_chaining_escalation"]
+        bfla = BFLA(types=types)
+        assert sorted(type.value for type in bfla.types) == sorted(types)
+
+    def test_bfla_legacy_function_exploitation(self):
+        types = ["legacy_function_exploitation"]
         bfla = BFLA(types=types)
         assert sorted(type.value for type in bfla.types) == sorted(types)
 
@@ -39,7 +45,7 @@ class TestBFLA:
 
     def test_bfla_all_types_invalid(self):
         types = [
-            "privilege_escalation",
+            "function_chaining_escalation",
             "function_bypass",
             "authorization_bypass",
             "invalid",

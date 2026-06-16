@@ -147,9 +147,10 @@ def _get_owasp_vulnerabilities() -> List[BaseVulnerability]:
         ),
         BFLA(
             types=[
-                "privilege_escalation",
                 "function_bypass",
                 "authorization_bypass",
+                "function_chaining_escalation",
+                "legacy_function_exploitation",
             ]
         ),
         BOLA(
