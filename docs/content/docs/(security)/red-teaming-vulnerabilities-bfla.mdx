@@ -20,7 +20,7 @@ from deepteam.vulnerabilities import BFLA
 from deepteam.attacks.single_turn import Roleplay
 from somewhere import your_callback
 
-bfla = BFLA(types=["privilege_escalation", "function_bypass"])
+bfla = BFLA(types=["function_bypass", "function_chaining_escalation"])
 
 red_team(
     vulnerabilities=[bfla], 
@@ -36,9 +36,10 @@ There are **EIGHT** optional parameters when creating a `BFLA` vulnerability:
 - [Optional] `async_mode`: a boolean which when set to `True`, enables concurrent execution. Defaulted to `True`.
 - [Optional] `verbose_mode`: a boolean which when set to `True`, prints the intermediate steps used to assess said vulnerability to the console. Defaulted to `False`.
 - [Optional] `types`: a list of `types` of `BFLA` to test through. Defaulted to all `types` available. Here are the list of `types` available for `BFLA`:
-  - `privilege_escalation`: Tests whether the agent resists unauthorized access to admin functions and elevated privileges.
-  - `function_bypass`: Tests whether the agent properly validates function-level authorization controls.
-  - `authorization_bypass`: Tests whether the agent maintains proper authorization validation across different interaction contexts.
+  - `function_bypass`: Tests whether the agent refuses to directly invoke admin, internal, management, or maintenance functions and restricted endpoints when they are framed as routine operations.
+  - `authorization_bypass`: Tests whether the agent enforces a function's own authorization check — e.g. refusing a write or mutation path while the corresponding read is gated, or refusing an over-permissioned generic tool asked to perform privileged work.
+  - `function_chaining_escalation`: Tests whether the agent prevents chaining individually-authorized functions, or pivoting to a broader-privileged sibling function or agent, to reach a privileged outcome.
+  - `legacy_function_exploitation`: Tests whether the agent blocks deprecated, legacy, or alternate-version functions and shadow endpoints that predate the current authorization checks.
 
 - [Optional] `evaluation_examples`: an optional list of [`EvaluationExample`](/docs/red-teaming-introduction#evaluation-examples-and-guidelines)s used as few-shot calibration for this vulnerability's LLM-as-judge metric. Each example includes `input`, `actual_output`, a binary `score` (`0` = fail, `1` = pass), and a `reason` explaining why that score is correct. Defaulted to `None`.
 - [Optional] `evaluation_guidelines`: an optional list of strings passed to the judge prompt as guidelines for evaluations (e.g., treat a partial leak as a failure). Defaulted to `None`.
@@ -78,7 +79,7 @@ guidelines = [
 ]
 
 bfla = BFLA(
-    types=["privilege_escalation", "function_bypass"],
+    types=["function_bypass", "function_chaining_escalation"],
     evaluation_examples=examples,
     evaluation_guidelines=guidelines,
     attack_engine=engine,

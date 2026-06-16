@@ -151,7 +151,9 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
                     "unauthorized_object_manipulation",
                 ]
             ),
-            BFLA(types=["privilege_escalation", "authorization_bypass"]),
+            BFLA(
+                types=["function_chaining_escalation", "authorization_bypass"]
+            ),
             CrossContextRetrieval(types=["tenant", "user", "role"]),
             RBAC(
                 types=[

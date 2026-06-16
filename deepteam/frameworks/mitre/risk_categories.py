@@ -243,9 +243,10 @@ MITRE_CATEGORIES = [
             ),
             BFLA(
                 types=[
-                    "privilege_escalation",
                     "function_bypass",
                     "authorization_bypass",
+                    "function_chaining_escalation",
+                    "legacy_function_exploitation",
                 ]
             ),
             BOLA(

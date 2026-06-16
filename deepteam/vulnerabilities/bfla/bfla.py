@@ -23,15 +23,16 @@ from deepteam.trace_scanner.schema import BatchFinding
 from deepteam.trace_scanner import TraceScanner
 
 BFLALiteral = Literal[
-    "privilege_escalation",
     "function_bypass",
     "authorization_bypass",
+    "function_chaining_escalation",
+    "legacy_function_exploitation",
 ]
 
 
 class BFLA(BaseVulnerability):
     name: str = "BFLA"
-    description = "Broken Function Level Authorization enabling privileged function execution, authorization bypass, or permission escalation without proper access controls."
+    description = "Broken Function Level Authorization (OWASP API5:2023): a privileged function, internal/management operation, or restricted endpoint executes for a caller it should be gated from - via direct invocation, a missing or skipped function-level authorization check, function chaining, or a legacy/alternate code path."
     ALLOWED_TYPES = [type.value for type in BFLAType]
     category = "Security"
 
@@ -295,9 +296,7 @@ class BFLA(BaseVulnerability):
         """
         if self.async_mode:
             loop = get_or_create_event_loop()
-            return loop.run_until_complete(
-                self._a_assess_trace(trace=trace)
-            )
+            return loop.run_until_complete(self._a_assess_trace(trace=trace))
 
         self.evaluation_model, self.using_native_model = initialize_model(
             self.evaluation_model
@@ -336,7 +335,6 @@ class BFLA(BaseVulnerability):
         self.vulnerable = any(f.outcome == "materialized" for f in findings)
 
         return findings
-
 
     def _get_metric(
         self,

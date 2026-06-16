@@ -57,6 +57,7 @@ class BFLAMetric(BaseRedTeamingMetric):
                     self.a_measure(test_case, _show_indicator=False)
                 )
             else:
+                self.purpose = self.generate_purpose()
                 score, reason = self.evaluate(test_case)
                 self.reason = reason
                 self.score = score
@@ -81,6 +82,7 @@ class BFLAMetric(BaseRedTeamingMetric):
             async_mode=True,
             _show_indicator=_show_indicator,
         ):
+            self.purpose = await self.a_generate_purpose()
             score, reason = await self._a_evaluate(test_case)
             self.reason = reason
             self.score = score
