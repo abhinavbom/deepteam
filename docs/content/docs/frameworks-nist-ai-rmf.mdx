@@ -8,21 +8,27 @@ import { ASSETS } from "@site/src/assets";
 The **NIST AI Risk Management Framework (AI RMF)** is a structured methodology from the U.S. National Institute of Standards and Technology that guides organizations in identifying, evaluating, and mitigating risks in artificial intelligence systems.
 It promotes **trustworthy AI** by focusing on governance, measurement, and continuous risk tracking across the AI lifecycle.
 
-DeepTeam's implementation of NIST focuses on the **Measure** function — the part of the framework responsible for **testing, evaluation, and assurance** of AI behavior and risk controls.
+DeepTeam's implementation maps the project's curated, judge-backed vulnerabilities and attacks onto the prompt-testable slice of the **MEASURE** function — one category per NIST AI RMF MEASURE subcategory, mirroring the MITRE ATLAS module's one-tactic-per-category design — so each generated test case traces back to a real MEASURE subcategory id.
 
 ## Overview
 
-DeepTeam's **NIST AI RMF module** automates red teaming and risk validation against NIST's measurement categories.
-It evaluates your LLM or AI system for reliability, fairness, robustness, security, privacy, and resilience using a standardized testing approach.
+DeepTeam's **NIST AI RMF module** automates red teaming and risk validation against the prompt-testable MEASURE subcategories.
+It evaluates your LLM or AI system for validity, safety, security, privacy, fairness, emergent agentic risk, and transparency using a standardized, traceable testing approach.
 
-The framework is divided into four categories of measures:
+The framework exposes **eight** prompt-testable categories, each pinned to a NIST AI RMF MEASURE subcategory:
 
-| Measure Category | Description                                                                                  |
-| ---------------- | -------------------------------------------------------------------------------------------- |
-| **Measure 1**    | Define and apply appropriate testing and metrics for AI risk evaluation                      |
-| **Measure 2**    | Evaluate the AI system for trustworthiness, safety, security, fairness, and misuse potential |
-| **Measure 3**    | Establish mechanisms for identifying, tracking, and managing emerging risks                  |
-| **Measure 4**    | Measure and correlate AI risk impacts with business and performance outcomes                 |
+| Category               | MEASURE id   | Focus                                                                       |
+| ---------------------- | ------------ | --------------------------------------------------------------------------- |
+| `measurement_methods`  | MEASURE 1    | Independent assessment, metric selection & validation                       |
+| `validity_reliability` | MEASURE 2.5  | Valid & reliable — hijacking, over-reliance, confabulation                   |
+| `safety`               | MEASURE 2.6  | Safe — physical harm, illegal activity, graphic content, minor protection   |
+| `security_resilience`  | MEASURE 2.7  | Secure & resilient — the broad security red-team surface                    |
+| `privacy`              | MEASURE 2.10 | Privacy-enhanced — direct, oblique & cross-tenant disclosure                 |
+| `fairness_bias`        | MEASURE 2.11 | Fair with harmful bias managed                                              |
+| `emergent_risk`        | MEASURE 3    | Emergent & hard-to-measure agentic risk tracking                            |
+| `impact_transparency`  | MEASURE 4    | Impact, transparency & business outcomes                                    |
+
+Governance (GOVERN/MAP/MANAGE) and offline or process-only MEASURE subcategories are intentionally out of scope for live-prompt testing.
 
 :::tip
 You can also run this assessment in the Confident AI platform without any code.
@@ -43,228 +49,100 @@ from deepteam import red_team
 from deepteam.frameworks import NIST
 from somewhere import your_model_callback
 
+# Defaults to all eight MEASURE categories; pass a subset to scope the run.
 risk_assessment = red_team(
     model_callback=your_model_callback,
-    framework=NIST(categories=["measure_1"])
+    framework=NIST(categories=["security_resilience", "safety"]),
 )
 ```
 
 The `NIST` framework accepts **ONE** optional parameter:
 
-- [Optional] `categories`: A list of strings that represent the `NIST` measure you want to test your AI application on:
-    - `measure_1`: defines and applies appropriate testing and metrics for AI risk evaluation
-    - `measure_2`: evaluates the AI system for trustworthiness, safety, security, fairness, and misuse potential
-    - `measure_3`: establishes mechanisms for identifying, tracking, and managing emerging risks
-    - `measure_4`: measures and correlates AI risk impacts with business and performance outcomes
+- [Optional] `categories`: a list of the MEASURE categories to test. Defaults to all eight. Passing an unknown category raises a `ValueError`.
+    - `measurement_methods` (MEASURE 1): independent assessment — what an external assessor or non-developer reviewer can enumerate, fingerprint, or expose when selecting and validating risk metrics.
+    - `validity_reliability` (MEASURE 2.5): resistance to hijacking and over-reliance, and freedom from confabulated or unsupported output.
+    - `safety` (MEASURE 2.6): physical harm, illegal activity, graphic/abusive content, and protection of minors.
+    - `security_resilience` (MEASURE 2.7): prompt/credential leakage, injection and code execution, broken access control, and the agent/tool/RAG attack surface.
+    - `privacy` (MEASURE 2.10): direct, oblique, and cross-tenant data disclosure.
+    - `fairness_bias` (MEASURE 2.11): consistent treatment of protected groups and managed harmful bias.
+    - `emergent_risk` (MEASURE 3): goal drift, recursive goal hijacking, runaway autonomy, and goal extraction.
+    - `impact_transparency` (MEASURE 4): business-impact, competitive, and intellectual-property exposure.
 
-## Measure Categories and Testing Coverage
+## Categories and Testing Coverage
 
-DeepTeam operationalizes NIST's **Measure** function through four major categories that map to the subfunctions (M.1-M.4) in the [NIST AI Risk Management Framework (AI RMF 1.0)](https://www.nist.gov/itl/ai-risk-management-framework).
-Each category corresponds to a distinct aspect of AI risk measurement, evaluation, monitoring, and feedback.
+Each category maps to a NIST AI RMF MEASURE subcategory (validated against NIST AI 100-1 by `test_nist.py`) and bundles curated, judge-backed vulnerabilities with subcategory-appropriate attacks. The lists below are representative, not exhaustive.
 
-### Measure 1 — Risk Measurement and Metrics
+### `measurement_methods` — Independent Assessment (MEASURE 1)
 
-**(NIST Subfunctions: M.1.1-M.1.3)**
+The independent-assessment surface: what a non-developer reviewer can enumerate, fingerprint, or expose about the system when selecting and validating risk metrics (M.1.1–M.1.3).
 
-**Goal:** Identify, apply, and continuously improve appropriate methods and metrics for assessing AI risks.
+- **Vulnerabilities:** `SystemReconnaissance`, `DebugAccess`
+- **Attacks:** `PromptProbing`, `GrayBox`, `Roleplay` (non-developer assessor), `Multilingual`
 
-DeepTeam's Measure 1 implementation focuses on **measurable risk discovery** and **evaluation setup** — ensuring that test methods, metrics, and expert review processes are in place and auditable.
+### `validity_reliability` — Valid & Reliable (MEASURE 2.5)
 
-It reflects NIST's expectations that:
+Whether the system is valid and reliable: resistant to hijacking, not over-relied upon, and free of confabulated or unsupported output.
 
-- AI risk metrics are **selected and documented** based on significance and feasibility (M.1.1).
-- The **appropriateness of metrics** and **effectiveness of existing controls** are regularly reassessed (M.1.2).
-- **Independent experts** or **non-developers** periodically review measurement validity (M.1.3).
+- **Vulnerabilities:** `Misinformation`, `Robustness`
+- **Attacks:** `GrayBox`, `PromptProbing`, `BadLikertJudge`, `Multilingual`, `PromptInjection`
 
-DeepTeam tests:
+### `safety` — Safe (MEASURE 2.6)
 
-- Intellectual property and data integrity safeguards
-- Role-based access control (RBAC) and privilege management
-- Exposure of debugging or administrative interfaces
+Whether the system avoids content that enables physical harm, illegal activity, or graphic/abusive material, and protects minors.
 
-**Example vulnerabilities tested**
+- **Vulnerabilities:** `PersonalSafety`, `IllegalActivity`, `GraphicContent`, `ChildProtection`, `Toxicity`
+- **Attacks:** `CrescendoJailbreaking`, `LinearJailbreaking`, `SequentialJailbreak`, `Roleplay` (safety tester), `AdversarialPoetry`, `BadLikertJudge`
 
-- `IntellectualProperty`
-- `RBAC`
-- `DebugAccess`
+### `security_resilience` — Secure & Resilient (MEASURE 2.7)
 
-**Example attacks**
+The broadest MEASURE characteristic and the primary security red-team surface: prompt/credential leakage, injection and code execution, broken access control, and the agent/tool/RAG attack surface.
 
-- `PromptProbing`
-- `GrayBox`
-- `Roleplay` (Compliance Officer persona)
+- **Vulnerabilities:** `PromptLeakage`, `ShellInjection`, `SQLInjection`, `SSRF`, `UnexpectedCodeExecution`, `RBAC`, `BFLA`, `BOLA`, `ExcessiveAgency`, `ExploitToolAgent`, `ToolMetadataPoisoning`, `ToolOrchestrationAbuse`, `IndirectInstruction`, `AgentIdentityAbuse`, `InsecureInterAgentCommunication`, `ExternalSystemAbuse`
+- **Attacks:** `PromptInjection`, `EmbeddedInstructionJSON`, `SystemOverride`, `GoalRedirection`, `PermissionEscalation`, `AuthorityEscalation`, `ContextPoisoning`, `Base64`, `ROT13`, `Leetspeak`
 
-```python
-from deepteam.frameworks import NIST
-from deepteam import red_team
-from somewhere import your_model_callback
+### `privacy` — Privacy-Enhanced (MEASURE 2.10)
 
-nist = NIST(categories=["measure_1"])
-attacks = nist.attacks
-vulnerabilities = nist.vulnerabilities
+Whether the system discloses personal data directly or obliquely, leaks it across sessions, or exposes another tenant's/user's data through retrieval.
 
-# Modify attributes for your specific testing context if needed
-risk_assessment = red_team(
-    model_callback=your_model_callback,
-    vulnerabilities=vulnerabilities,
-    attacks=attacks
-)
-```
+- **Vulnerabilities:** `PIILeakage`, `CrossContextRetrieval`
+- **Attacks:** `PromptProbing`, `PromptInjection`, `Multilingual`, `ContextPoisoning`, `Base64`
 
-These tests ensure your AI system's evaluation methods are **structured, reviewable, and aligned with NIST's expectations for auditable risk measurement**.
+### `fairness_bias` — Fair with Harmful Bias Managed (MEASURE 2.11)
 
-### Measure 2 — Trustworthiness and Safety Evaluation
+Whether the system treats protected groups consistently, applies procedures equitably, and upholds ethical commitments.
 
-**(NIST Subfunctions: M.2.1-M.2.13)**
+- **Vulnerabilities:** `Bias`, `Fairness`, `Ethics`
+- **Attacks:** `Roleplay`, `PromptInjection`, `LinguisticConfusion`, `BadLikertJudge`, `Multilingual`
 
-**Goal:** Evaluate and validate AI systems for **trustworthy characteristics** such as safety, fairness, security, robustness, privacy, and reliability — under real-world conditions.
+### `emergent_risk` — Emergent & Hard-to-Measure Risk (MEASURE 3)
 
-This is the most comprehensive of the Measure categories.
-DeepTeam automates testing aligned with NIST's subfunctions covering:
+Existing, unanticipated, and emergent agentic risks that are difficult to assess with current measurement techniques: goal drift, runaway autonomy, recursive goal hijacking, and goal extraction.
 
-- **Evaluation documentation** and reproducibility (M.2.1-M.2.3)
-- **Operational monitoring** of deployed systems (M.2.4)
-- **Validation and reliability** of AI performance (M.2.5)
-- **Safety, robustness, and fail-safe design** (M.2.6-M.2.7)
-- **Transparency, accountability, and explainability** (M.2.8-M.2.9)
-- **Privacy, fairness, and bias** evaluation (M.2.10-M.2.11)
-- **Environmental and sustainability considerations** (M.2.12)
-- **Effectiveness of evaluation and measurement processes** (M.2.13)
+- **Vulnerabilities:** `AutonomousAgentDrift`, `RecursiveHijacking`, `GoalTheft`
+- **Attacks:** `CrescendoJailbreaking`, `GoalRedirection`, `SystemOverride`, `ContextPoisoning`, `SequentialJailbreak`, `PromptInjection`
 
-DeepTeam performs extensive testing across:
+### `impact_transparency` — Impact, Transparency & Business Outcomes (MEASURE 4)
 
-- **Bias, fairness, and ethics**
-- **Safety and personal protection**
-- **Data leakage, privacy, and prompt exposure**
-- **Robustness and adversarial misuse**
-- **Security vulnerabilities** (SSRF, SQL Injection, Shell Injection, etc.)
-- **Content safety** (toxicity, graphic or harmful material)
+Whether the system's risk impacts on business outcomes, competitive position, and intellectual property are surfaced and communicated.
 
-**Example vulnerabilities**
+- **Vulnerabilities:** `Competition`, `IntellectualProperty`
+- **Attacks:** `PromptProbing`, `BadLikertJudge`, `Roleplay` (end user), `PromptInjection`
 
-- `Bias`, `Fairness`, `Ethics`, `Toxicity`
-- `PromptLeakage`, `PIILeakage`
-- `Robustness`, `ExcessiveAgency`
-- `SQLInjection`, `ShellInjection`, `SSRF`
-- `ChildProtection`, `PersonalSafety`, `IllegalActivity`
-
-**Example attacks**
-
-- `PromptInjection`, `CrescendoJailbreaking`, `SequentialJailbreak`
-- `Leetspeak`, `ROT13`, `Base64`, `Multilingual`
-- `Roleplay` (Security Researcher persona)
+You can also pull a single category's curated attacks and vulnerabilities and feed them into `red_team` directly:
 
 ```python
 from deepteam.frameworks import NIST
 from deepteam import red_team
 from somewhere import your_model_callback
 
-nist = NIST(categories=["measure_2"])
-attacks = nist.attacks
-vulnerabilities = nist.vulnerabilities
+nist = NIST(categories=["security_resilience"])
 
-# Modify attributes for your specific testing context if needed
 risk_assessment = red_team(
     model_callback=your_model_callback,
-    vulnerabilities=vulnerabilities,
-    attacks=attacks
+    vulnerabilities=nist.vulnerabilities,
+    attacks=nist.attacks,
 )
 ```
-
-This category enforces **systemic testing of AI trustworthiness**, ensuring continuous validation across fairness, safety, privacy, robustness, and ethical boundaries.
-
-### Measure 3 — Risk Tracking and Monitoring
-
-**(NIST Subfunctions: M.3.1-M.3.3)**
-
-**Goal:** Establish continuous monitoring mechanisms to track **identified, unanticipated, and emerging AI risks** throughout system operation.
-
-DeepTeam automates ongoing assessments consistent with NIST's expectations that:
-
-- Mechanisms and personnel are in place to **track existing and emergent risks** (M.3.1).
-- Risk tracking extends to areas where **quantitative measurement is difficult** (M.3.2).
-- **Feedback loops** from users and affected communities are integrated into evaluation metrics (M.3.3).
-
-DeepTeam evaluates whether your system can:
-
-- Detect privilege or access bypasses over time
-- Track drift, misuse, or emergent vulnerabilities
-- Capture user and operational feedback for remediation
-
-**Example vulnerabilities**
-
-- `Competition` (e.g., discreditation, market manipulation)
-- `BFLA`, `BOLA` (authorization and object access controls)
-
-**Example attacks**
-
-- `PromptProbing`, `GrayBox`, `PromptInjection`
-- `Roleplay` (Monitoring Engineer persona)
-
-```python
-from deepteam.frameworks import NIST
-from deepteam import red_team
-from somewhere import your_model_callback
-
-nist = NIST(categories=["measure_3"])
-attacks = nist.attacks
-vulnerabilities = nist.vulnerabilities
-
-# Modify attributes for your specific testing context if needed
-risk_assessment = red_team(
-    model_callback=your_model_callback,
-    vulnerabilities=vulnerabilities,
-    attacks=attacks
-)
-```
-
-This measure reinforces NIST's principle of **adaptive oversight**, ensuring AI systems remain accountable and safe after deployment-
-
-### Measure 4 — Impact and Transparency Assessment
-
-**(NIST Subfunctions: M.4.1-M.4.3)**
-
-**Goal:** Connect AI risk measurements to **business outcomes, stakeholder transparency, and lifecycle performance**.
-
-DeepTeam's Measure 4 tests assess whether feedback mechanisms and transparency reporting accurately reflect operational trustworthiness, as defined by NIST:
-
-- Measurement methods are **context-aware and documented** (M.4.1)
-- Measurement results are **validated by domain experts and AI actors** (M.4.2)
-- **Performance changes and stakeholder feedback** are incorporated into continuous improvement (M.4.3)
-
-DeepTeam evaluates:
-
-- Transparency and reporting effectiveness
-- Accuracy of performance monitoring
-- Feedback integration and risk communication
-
-**Example vulnerability**
-
-- `CustomVulnerability` (Transparency Assessment)
-
-**Example attacks**
-
-- `PromptProbing`, `BadLikertJudge`
-- `Roleplay` (End User persona)
-
-```python
-from deepteam.frameworks import NIST
-from deepteam import red_team
-from somewhere import your_model_callback
-
-nist = NIST(categories=["measure_4"])
-attacks = nist.attacks
-vulnerabilities = nist.vulnerabilities
-
-# Modify attributes for your specific testing context if needed
-risk_assessment = red_team(
-    model_callback=your_model_callback,
-    vulnerabilities=vulnerabilities,
-    attacks=attacks
-)
-```
-
-This category ensures AI systems not only measure risks effectively but also **close the feedback loop** by aligning transparency, accountability, and business value.
 
 :::info Run NIST AI RMF Assessments on Confident AI
 [Confident AI](https://www.confident-ai.com) lets you configure the NIST AI RMF framework, schedule recurring risk assessments, manage vulnerabilities in one place, and share downloadable PDF reports with your team for security alignment.
