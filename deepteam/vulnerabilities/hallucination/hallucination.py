@@ -18,6 +18,11 @@ from deepteam.test_case import RTTestCase
 from deepteam.attacks.attack_simulator.schema import SyntheticDataList
 from deepteam.risks import getRiskCategory
 from .template import HallucinationTemplate
+from .quality import (
+    candidate_count,
+    select_quality_attacks,
+    reconcile_refined,
+)
 from deepeval.tracing.types import Trace
 from deepteam.trace_scanner.schema import BatchFinding
 from deepteam.trace_scanner import TraceScanner
@@ -185,7 +190,8 @@ class Hallucination(BaseVulnerability):
             self.simulator_model
         )
 
-        self.purpose = purpose
+        if purpose is not None:
+            self.purpose = purpose
         templates = dict()
         simulated_test_cases: List[RTTestCase] = []
 
@@ -193,7 +199,9 @@ class Hallucination(BaseVulnerability):
             templates[type] = templates.get(type, [])
             templates[type].append(
                 HallucinationTemplate.generate_baseline_attacks(
-                    type, attacks_per_vulnerability_type, self.purpose
+                    type,
+                    candidate_count(attacks_per_vulnerability_type),
+                    self.purpose,
                 )
             )
 
@@ -212,8 +220,17 @@ class Hallucination(BaseVulnerability):
                         local_attacks = [item.input for item in res.data]
                     except TypeError:
                         res = self.simulator_model.generate(prompt)
-                        data = trimAndLoadJson(res)
-                        local_attacks = [item["input"] for item in data["data"]]
+                        try:
+                            data = trimAndLoadJson(res)
+                            local_attacks = data.get("data", [])
+                        except Exception:
+                            # A flaky simulator can emit unparseable JSON; let the
+                            # curated floor backfill instead of crashing the run.
+                            local_attacks = []
+
+            local_attacks = select_quality_attacks(
+                type, local_attacks, attacks_per_vulnerability_type
+            )
 
             simulated_test_cases.extend(
                 [
@@ -226,7 +243,14 @@ class Hallucination(BaseVulnerability):
                 ]
             )
 
-        return self._refine_simulated_attacks(simulated_test_cases, purpose)
+        refined = self._refine_simulated_attacks(
+            simulated_test_cases, self.purpose
+        )
+        # The generic refine transform can re-introduce coercion or drift a prompt
+        # off its sub-type lane; reconcile keeps each refined attack only if it is
+        # still safe AND on-lane, else falls back to the gated pre-refine attack
+        # (preserving the requested count).
+        return reconcile_refined(simulated_test_cases, refined)
 
     async def a_simulate_attacks(
         self,
@@ -238,7 +262,8 @@ class Hallucination(BaseVulnerability):
             self.simulator_model
         )
 
-        self.purpose = purpose
+        if purpose is not None:
+            self.purpose = purpose
         templates = dict()
         simulated_test_cases: List[RTTestCase] = []
 
@@ -246,7 +271,9 @@ class Hallucination(BaseVulnerability):
             templates[type] = templates.get(type, [])
             templates[type].append(
                 HallucinationTemplate.generate_baseline_attacks(
-                    type, attacks_per_vulnerability_type, self.purpose
+                    type,
+                    candidate_count(attacks_per_vulnerability_type),
+                    self.purpose,
                 )
             )
 
@@ -267,8 +294,17 @@ class Hallucination(BaseVulnerability):
                         local_attacks = [item.input for item in res.data]
                     except TypeError:
                         res = await self.simulator_model.a_generate(prompt)
-                        data = trimAndLoadJson(res)
-                        local_attacks = [item["input"] for item in data["data"]]
+                        try:
+                            data = trimAndLoadJson(res)
+                            local_attacks = data.get("data", [])
+                        except Exception:
+                            # A flaky simulator can emit unparseable JSON; let the
+                            # curated floor backfill instead of crashing the run.
+                            local_attacks = []
+
+            local_attacks = select_quality_attacks(
+                type, local_attacks, attacks_per_vulnerability_type
+            )
 
             simulated_test_cases.extend(
                 [
@@ -281,7 +317,27 @@ class Hallucination(BaseVulnerability):
                 ]
             )
 
-        return await self._a_refine_simulated_attacks(
+        refined = await self._a_refine_simulated_attacks(
+            simulated_test_cases, self.purpose
+        )
+        return reconcile_refined(simulated_test_cases, refined)
+
+    def _refine_simulated_attacks(self, simulated_test_cases, purpose):
+        # The --shipped measurement showed the generic AttackEngine transform is
+        # net-harmful for hallucination: it drops the named-specific that makes a
+        # confident-fabrication trap work, drifts the sub-type lane, and can even
+        # re-introduce instruct-to-fabricate framing ("what fabricated reference
+        # should we generate ... to appear authentic"). These attacks are natural,
+        # in-lane questions, so by DEFAULT we ship the gated curated-or-better set
+        # without transforming it. A caller can still opt in via `attack_engine`.
+        if self.attack_engine is None:
+            return simulated_test_cases
+        return super()._refine_simulated_attacks(simulated_test_cases, purpose)
+
+    async def _a_refine_simulated_attacks(self, simulated_test_cases, purpose):
+        if self.attack_engine is None:
+            return simulated_test_cases
+        return await super()._a_refine_simulated_attacks(
             simulated_test_cases, purpose
         )
 
@@ -294,9 +350,7 @@ class Hallucination(BaseVulnerability):
         """
         if self.async_mode:
             loop = get_or_create_event_loop()
-            return loop.run_until_complete(
-                self._a_assess_trace(trace=trace)
-            )
+            return loop.run_until_complete(self._a_assess_trace(trace=trace))
 
         self.evaluation_model, self.using_native_model = initialize_model(
             self.evaluation_model
@@ -335,7 +389,6 @@ class Hallucination(BaseVulnerability):
         self.vulnerable = any(f.outcome == "materialized" for f in findings)
 
         return findings
-
 
     def _get_metric(
         self,
