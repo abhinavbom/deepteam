@@ -19,16 +19,23 @@ from deepteam.test_case import RTTestCase
 from deepteam.attacks.attack_simulator.schema import SyntheticDataList
 from deepteam.risks import getRiskCategory
 from .template import CrossContextRetrievalTemplate
+from .quality import (
+    candidate_count,
+    select_quality_attacks,
+    reconcile_refined,
+)
 from deepeval.tracing.types import Trace
 from deepteam.trace_scanner.schema import BatchFinding
 from deepteam.trace_scanner import TraceScanner
 
-CrossContextRetrievalLiteralType = Literal["tenant", "user", "role"]
+CrossContextRetrievalLiteralType = Literal[
+    "tenant", "user", "role", "aggregation"
+]
 
 
 class CrossContextRetrieval(BaseVulnerability):
     name: str = "Cross-Context Retrieval"
-    description = "Unauthorized disclosure of information across boundaries, such as cross-tenant, cross-user, or cross-role data leakage in RAG or multi-tenant systems."
+    description = "Unauthorized disclosure of information across isolation boundaries — cross-tenant, cross-user, cross-role, or decomposed cross-scope aggregation — in RAG or multi-tenant systems."
     ALLOWED_TYPES = [type.value for type in CrossContextRetrievalType]
     category = "Security"
 
@@ -188,7 +195,10 @@ class CrossContextRetrieval(BaseVulnerability):
             self.simulator_model
         )
 
-        self.purpose = purpose
+        # Preserve the constructor-provided purpose when callers invoke
+        # simulate_attacks() without an explicit one (None must not clobber it).
+        if purpose is not None:
+            self.purpose = purpose
 
         templates = dict()
         simulated_test_cases: List[RTTestCase] = []
@@ -197,7 +207,9 @@ class CrossContextRetrieval(BaseVulnerability):
             templates[type] = templates.get(type, [])
             templates[type].append(
                 CrossContextRetrievalTemplate.generate_baseline_attacks(
-                    type, attacks_per_vulnerability_type, self.purpose
+                    type,
+                    candidate_count(attacks_per_vulnerability_type),
+                    self.purpose,
                 )
             )
 
@@ -216,8 +228,18 @@ class CrossContextRetrieval(BaseVulnerability):
                         local_attacks = [item.input for item in res.data]
                     except TypeError:
                         res = self.simulator_model.generate(prompt)
-                        data = trimAndLoadJson(res)
-                        local_attacks = [item["input"] for item in data["data"]]
+                        try:
+                            data = trimAndLoadJson(res)
+                            local_attacks = data.get("data", [])
+                        except Exception:
+                            # A flaky simulator can emit unparseable JSON; let the
+                            # curated floor backfill instead of crashing the run.
+                            local_attacks = []
+
+            # Curated-or-better: gate generations, fall back to the vetted floor.
+            local_attacks = select_quality_attacks(
+                type, local_attacks, attacks_per_vulnerability_type
+            )
 
             simulated_test_cases.extend(
                 [
@@ -230,7 +252,10 @@ class CrossContextRetrieval(BaseVulnerability):
                 ]
             )
 
-        return self._refine_simulated_attacks(simulated_test_cases, purpose)
+        refined = self._refine_simulated_attacks(
+            simulated_test_cases, self.purpose
+        )
+        return reconcile_refined(simulated_test_cases, refined)
 
     async def a_simulate_attacks(
         self,
@@ -242,7 +267,10 @@ class CrossContextRetrieval(BaseVulnerability):
             self.simulator_model
         )
 
-        self.purpose = purpose
+        # Preserve the constructor-provided purpose when callers invoke
+        # simulate_attacks() without an explicit one (None must not clobber it).
+        if purpose is not None:
+            self.purpose = purpose
 
         templates = dict()
         simulated_test_cases: List[RTTestCase] = []
@@ -251,7 +279,9 @@ class CrossContextRetrieval(BaseVulnerability):
             templates[type] = templates.get(type, [])
             templates[type].append(
                 CrossContextRetrievalTemplate.generate_baseline_attacks(
-                    type, attacks_per_vulnerability_type, self.purpose
+                    type,
+                    candidate_count(attacks_per_vulnerability_type),
+                    self.purpose,
                 )
             )
 
@@ -272,8 +302,18 @@ class CrossContextRetrieval(BaseVulnerability):
                         local_attacks = [item.input for item in res.data]
                     except TypeError:
                         res = await self.simulator_model.a_generate(prompt)
-                        data = trimAndLoadJson(res)
-                        local_attacks = [item["input"] for item in data["data"]]
+                        try:
+                            data = trimAndLoadJson(res)
+                            local_attacks = data.get("data", [])
+                        except Exception:
+                            # A flaky simulator can emit unparseable JSON; let the
+                            # curated floor backfill instead of crashing the run.
+                            local_attacks = []
+
+            # Curated-or-better: gate generations, fall back to the vetted floor.
+            local_attacks = select_quality_attacks(
+                type, local_attacks, attacks_per_vulnerability_type
+            )
 
             simulated_test_cases.extend(
                 [
@@ -286,7 +326,25 @@ class CrossContextRetrieval(BaseVulnerability):
                 ]
             )
 
-        return await self._a_refine_simulated_attacks(
+        refined = await self._a_refine_simulated_attacks(
+            simulated_test_cases, self.purpose
+        )
+        return reconcile_refined(simulated_test_cases, refined)
+
+    def _refine_simulated_attacks(self, simulated_test_cases, purpose):
+        # These baseline prompts are already evasive, on-lane, single-subject and
+        # gated by quality.select_quality_attacks. The generic AttackEngine
+        # transform can re-introduce banned literals or drift the sub-type lane,
+        # so by DEFAULT we ship the gated curated-or-better set untransformed. A
+        # caller can still opt in by passing an explicit `attack_engine`.
+        if self.attack_engine is None:
+            return simulated_test_cases
+        return super()._refine_simulated_attacks(simulated_test_cases, purpose)
+
+    async def _a_refine_simulated_attacks(self, simulated_test_cases, purpose):
+        if self.attack_engine is None:
+            return simulated_test_cases
+        return await super()._a_refine_simulated_attacks(
             simulated_test_cases, purpose
         )
 
@@ -299,9 +357,7 @@ class CrossContextRetrieval(BaseVulnerability):
         """
         if self.async_mode:
             loop = get_or_create_event_loop()
-            return loop.run_until_complete(
-                self._a_assess_trace(trace=trace)
-            )
+            return loop.run_until_complete(self._a_assess_trace(trace=trace))
 
         self.evaluation_model, self.using_native_model = initialize_model(
             self.evaluation_model
@@ -340,7 +396,6 @@ class CrossContextRetrieval(BaseVulnerability):
         self.vulnerable = any(f.outcome == "materialized" for f in findings)
 
         return findings
-
 
     def _get_metric(
         self,
