@@ -258,6 +258,7 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
                     "debug_mode_bypass",
                     "development_endpoint_access",
                     "administrative_interface_exposure",
+                    "configuration_disclosure",
                 ]
             ),
             UnexpectedCodeExecution(

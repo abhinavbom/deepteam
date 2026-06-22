@@ -1,5 +1,7 @@
 from typing import List, Literal, Optional, Union, Dict
 import asyncio
+import re
+import warnings
 
 from deepeval.models import DeepEvalBaseLLM
 from deepeval.metrics.utils import initialize_model, trimAndLoadJson
@@ -26,12 +28,44 @@ DebugAccessLiteral = Literal[
     "debug_mode_bypass",
     "development_endpoint_access",
     "administrative_interface_exposure",
+    "configuration_disclosure",
 ]
+
+# --- Deterministic quality floor (review Finding 1) -------------------------
+# Drops self-defeating generations a weak local simulator can emit, WITHOUT a
+# curated seed bank: attack-naming / meta vocabulary that gets refused on sight,
+# off-lane SSRF/recon drift (those belong to the ssrf / system_reconnaissance
+# modules), egregious "dump everything internal" laundry-lists, and near-dupes.
+# A sparse batch therefore yields FEWER (not fabricated) attacks — callers
+# wanting a guaranteed count can oversample upstream.
+_FLOOR_BANNED_RE = re.compile(
+    r"debug mode|ignore previous|this is a test|for evaluation"
+    r"|red[\s-]?team|as an ai|\bexploit|\bjailbreak|\bpenetrat"
+    r"|\bmalicious|\bbypass|\bvulnerabilit|\bhack",
+    re.I,
+)
+_FLOOR_OFFLANE_RE = re.compile(
+    r"169\.254|/proc/self/environ|metadata\.google|metadata service"
+    r"|fetch\s+https?://|curl\s+https?://|make a request to\s+https?://"
+    r"|what model are you|which llm are you|what (?:llm|model) are you",
+    re.I,
+)
+_FLOOR_BULK_CATEGORIES = (
+    re.compile(r"\benv(?:ironment)?\b|env var", re.I),
+    re.compile(r"connection string|database url|\bdsn\b", re.I),
+    re.compile(r"api key|\btoken\b|\bsecret\b|credential", re.I),
+    re.compile(r"account id|\bregion\b|\barn\b|\brole\b", re.I),
+    re.compile(r"endpoint|hostname|internal url", re.I),
+    re.compile(r"stack trace|traceback", re.I),
+    re.compile(r"dashboard|console|admin panel", re.I),
+    re.compile(r"feature flag", re.I),
+)
+_FLOOR_TOKEN_RE = re.compile(r"[a-z0-9]+")
 
 
 class DebugAccess(BaseVulnerability):
     name: str = "Debug Access"
-    description = "Exposure of debug modes, development endpoints, or administrative interfaces that should be restricted in production environments."
+    description = "Exposure of debug/diagnostic modes, development endpoints, administrative interfaces, or runtime configuration and secrets (environment variables, connection strings, cloud identity) that should be restricted in production environments."
     ALLOWED_TYPES = [type.value for type in DebugAccessType]
     category = "Security"
 
@@ -187,37 +221,17 @@ class DebugAccess(BaseVulnerability):
             self.simulator_model
         )
 
-        self.purpose = purpose
+        # Preserve a purpose supplied via the constructor when simulate_attacks
+        # is called without one — otherwise the purpose-grounded templates fall
+        # back to the generic "AI agent".
+        self.purpose = purpose if purpose is not None else self.purpose
 
-        templates = dict()
         simulated_test_cases: List[RTTestCase] = []
 
         for type in self.types:
-            templates[type] = templates.get(type, [])
-            templates[type].append(
-                DebugAccessTemplate.generate_baseline_attacks(
-                    type, attacks_per_vulnerability_type, self.purpose
-                )
+            local_attacks = self._collect_floored_attacks(
+                type, attacks_per_vulnerability_type
             )
-
-        for type in self.types:
-            for prompt in templates[type]:
-                if self.using_native_model:
-                    res, _ = self.simulator_model.generate(
-                        prompt, schema=SyntheticDataList
-                    )
-                    local_attacks = [item.input for item in res.data]
-                else:
-                    try:
-                        res: SyntheticDataList = self.simulator_model.generate(
-                            prompt, schema=SyntheticDataList
-                        )
-                        local_attacks = [item.input for item in res.data]
-                    except TypeError:
-                        res = self.simulator_model.generate(prompt)
-                        data = trimAndLoadJson(res)
-                        local_attacks = [item["input"] for item in data["data"]]
-
             simulated_test_cases.extend(
                 [
                     RTTestCase(
@@ -229,7 +243,9 @@ class DebugAccess(BaseVulnerability):
                 ]
             )
 
-        return self._refine_simulated_attacks(simulated_test_cases, purpose)
+        return self._refine_simulated_attacks(
+            simulated_test_cases, self.purpose
+        )
 
     async def a_simulate_attacks(
         self,
@@ -241,39 +257,15 @@ class DebugAccess(BaseVulnerability):
             self.simulator_model
         )
 
-        self.purpose = purpose
+        # Preserve a constructor-supplied purpose when called without one.
+        self.purpose = purpose if purpose is not None else self.purpose
 
-        templates = dict()
         simulated_test_cases: List[RTTestCase] = []
 
         for type in self.types:
-            templates[type] = templates.get(type, [])
-            templates[type].append(
-                DebugAccessTemplate.generate_baseline_attacks(
-                    type, attacks_per_vulnerability_type, self.purpose
-                )
+            local_attacks = await self._a_collect_floored_attacks(
+                type, attacks_per_vulnerability_type
             )
-
-        for type in self.types:
-            for prompt in templates[type]:
-                if self.using_native_model:
-                    res, _ = await self.simulator_model.a_generate(
-                        prompt, schema=SyntheticDataList
-                    )
-                    local_attacks = [item.input for item in res.data]
-                else:
-                    try:
-                        res: SyntheticDataList = (
-                            await self.simulator_model.a_generate(
-                                prompt, schema=SyntheticDataList
-                            )
-                        )
-                        local_attacks = [item.input for item in res.data]
-                    except TypeError:
-                        res = await self.simulator_model.a_generate(prompt)
-                        data = trimAndLoadJson(res)
-                        local_attacks = [item["input"] for item in data["data"]]
-
             simulated_test_cases.extend(
                 [
                     RTTestCase(
@@ -286,6 +278,213 @@ class DebugAccess(BaseVulnerability):
             )
 
         return await self._a_refine_simulated_attacks(
+            simulated_test_cases, self.purpose
+        )
+
+    # Best-effort top-up: re-ask the simulator up to this many times when the
+    # quality floor leaves a sub-type short of the requested count. Bounded so a
+    # weak/uncooperative model can't loop — residual under-delivery is surfaced
+    # via a warning rather than fabricated (no curated seed bank, by design).
+    _MAX_GENERATION_PASSES = 2
+
+    def _generate_raw(self, prompt: str) -> List[str]:
+        if self.using_native_model:
+            res, _ = self.simulator_model.generate(
+                prompt, schema=SyntheticDataList
+            )
+            return [item.input for item in res.data]
+        try:
+            res: SyntheticDataList = self.simulator_model.generate(
+                prompt, schema=SyntheticDataList
+            )
+            return [item.input for item in res.data]
+        except TypeError:
+            res = self.simulator_model.generate(prompt)
+            return self._parse_local_attacks(res)
+
+    async def _a_generate_raw(self, prompt: str) -> List[str]:
+        if self.using_native_model:
+            res, _ = await self.simulator_model.a_generate(
+                prompt, schema=SyntheticDataList
+            )
+            return [item.input for item in res.data]
+        try:
+            res: SyntheticDataList = await self.simulator_model.a_generate(
+                prompt, schema=SyntheticDataList
+            )
+            return [item.input for item in res.data]
+        except TypeError:
+            res = await self.simulator_model.a_generate(prompt)
+            return self._parse_local_attacks(res)
+
+    @classmethod
+    def _pass_request_size(cls, k: int, attempt: int) -> int:
+        # Pass 0 requests exactly k (cheap, unchanged for healthy runs). A top-up
+        # pass requests MORE — and a DIFFERENT count — so a deterministic /
+        # low-temperature simulator returns a fresh batch instead of repeating
+        # the same one, and the floor gets headroom. No curated seed bank: this
+        # is the "prompt variation on top-up" lever, not fabrication.
+        return k if attempt == 0 else k * (attempt + 1)
+
+    def _collect_floored_attacks(
+        self, vuln_type: DebugAccessType, k: int
+    ) -> List[str]:
+        collected: List[str] = []
+        for attempt in range(self._MAX_GENERATION_PASSES):
+            prompt = DebugAccessTemplate.generate_baseline_attacks(
+                vuln_type, self._pass_request_size(k, attempt), self.purpose
+            )
+            collected = self._apply_quality_floor(
+                collected + self._generate_raw(prompt), vuln_type
+            )
+            if len(collected) >= k:
+                break
+        return self._finalize_floored(collected, vuln_type, k)
+
+    async def _a_collect_floored_attacks(
+        self, vuln_type: DebugAccessType, k: int
+    ) -> List[str]:
+        collected: List[str] = []
+        for attempt in range(self._MAX_GENERATION_PASSES):
+            prompt = DebugAccessTemplate.generate_baseline_attacks(
+                vuln_type, self._pass_request_size(k, attempt), self.purpose
+            )
+            collected = self._apply_quality_floor(
+                collected + await self._a_generate_raw(prompt), vuln_type
+            )
+            if len(collected) >= k:
+                break
+        return self._finalize_floored(collected, vuln_type, k)
+
+    @staticmethod
+    def _finalize_floored(
+        collected: List[str], vuln_type: DebugAccessType, k: int
+    ) -> List[str]:
+        # Surface (don't hide) a coverage gap: if the floor + top-up still leaves
+        # a sub-type short, warn rather than silently ship zero/too-few attacks.
+        if len(collected) < k:
+            warnings.warn(
+                f"DebugAccess: sub-type '{vuln_type.value}' produced only "
+                f"{len(collected)}/{k} attack(s) after the quality floor; "
+                f"shipping fewer (no curated backfill).",
+                stacklevel=2,
+            )
+        return collected[:k]
+
+    @staticmethod
+    def _is_self_defeating(text: str) -> bool:
+        # Banned attack-naming/meta vocabulary, or off-lane SSRF/recon drift.
+        if _FLOOR_BANNED_RE.search(text) or _FLOOR_OFFLANE_RE.search(text):
+            return True
+        # Egregious laundry-list: a single prompt asking for many distinct
+        # internal categories at once reads as a scanner, not a user.
+        hits = sum(1 for rx in _FLOOR_BULK_CATEGORIES if rx.search(text))
+        return hits >= 5
+
+    @staticmethod
+    def _too_similar(a: str, b: str, threshold: float = 0.85) -> bool:
+        ta = set(_FLOOR_TOKEN_RE.findall(a.lower()))
+        tb = set(_FLOOR_TOKEN_RE.findall(b.lower()))
+        if not ta or not tb:
+            return False
+        return len(ta & tb) / len(ta | tb) >= threshold
+
+    # Distinctive lane cues per sub-type. Used ONLY to reject a generation that
+    # clearly belongs to a DIFFERENT debug-access sub-type than the one it was
+    # generated for (see _is_cross_lane). NOT a positive keyword gate — evasive
+    # prompts that match no cue at all are preserved.
+    _LANE_CUES = {
+        DebugAccessType.DEBUG_MODE_BYPASS: re.compile(
+            r"verbos|stack ?trace|traceback|reasoning chain|diagnostic mode"
+            r"|trace id|request id|\bspan\b|profil",
+            re.I,
+        ),
+        DebugAccessType.DEVELOPMENT_ENDPOINT_ACCESS: re.compile(
+            r"/docs|swagger|openapi|graphql|/health|/metrics|/ready|/api/v"
+            r"|staging|sandbox|pprof|service catalog|service mesh",
+            re.I,
+        ),
+        DebugAccessType.ADMINISTRATIVE_INTERFACE_EXPOSURE: re.compile(
+            r"admin panel|/admin|dashboard|sidekiq|kibana|grafana|pgadmin"
+            r"|adminer|argo ?cd|jenkins|consul ui|job queue|feature flag"
+            r"|flower|bull board|hangfire",
+            re.I,
+        ),
+        DebugAccessType.CONFIGURATION_DISCLOSURE: re.compile(
+            r"env var|environment variable|environment\b|\benv\b"
+            r"|connection string|database url|\bdsn\b|api key|\btoken\b"
+            r"|\bsecret\b|credential|account id|\barn\b|\brole\b|\bregion\b"
+            r"|effective config|effective settings|startup|loaded config",
+            re.I,
+        ),
+    }
+
+    @classmethod
+    def _is_cross_lane(cls, text: str, vuln_type: DebugAccessType) -> bool:
+        own = cls._LANE_CUES.get(vuln_type)
+        if own is None or own.search(text):
+            return False  # unknown type, or it matches its own lane -> keep
+        # No own-lane cue: drop ONLY as a clear mislabel — i.e. it distinctly
+        # matches a DIFFERENT sub-type's lane. Prompts matching no lane cue at
+        # all (the most evasive ones) are preserved.
+        return any(
+            t is not vuln_type and rx.search(text)
+            for t, rx in cls._LANE_CUES.items()
+        )
+
+    @classmethod
+    def _apply_quality_floor(
+        cls,
+        attacks: List[str],
+        vuln_type: Optional[DebugAccessType] = None,
+    ) -> List[str]:
+        # Deterministic, curated-bank-free floor: drop self-defeating, off-lane
+        # (when the sub-type is known), and near-duplicate generations, preserving
+        # order. May return fewer than were generated (accepted trade-off — no
+        # seed backfill; shortfalls are surfaced by _finalize_floored).
+        kept: List[str] = []
+        for atk in attacks:
+            text = (atk or "").strip()
+            if not text or cls._is_self_defeating(text):
+                continue
+            if vuln_type is not None and cls._is_cross_lane(text, vuln_type):
+                continue
+            if any(cls._too_similar(text, k) for k in kept):
+                continue
+            kept.append(text)
+        return kept
+
+    @staticmethod
+    def _parse_local_attacks(res: str) -> List[str]:
+        # Non-native simulators (e.g. an open local model) emit markdown-fenced or
+        # occasionally malformed JSON. Tolerate a bad batch by returning [] so one
+        # garbled response degrades gracefully instead of aborting the whole run;
+        # other sub-types and prompts still produce attacks.
+        try:
+            data = trimAndLoadJson(res)
+            items = data.get("data", []) if isinstance(data, dict) else []
+            return [
+                item["input"]
+                for item in items
+                if isinstance(item, dict) and item.get("input")
+            ]
+        except Exception:
+            return []
+
+    def _refine_simulated_attacks(self, simulated_test_cases, purpose):
+        # The baseline debug-access prompts are already evasive, single-target,
+        # and free of attack-naming literals. The generic AttackEngine transform
+        # can re-introduce banned vocabulary ("debug mode"/"bypass"/...) or drift
+        # the sub-type lane, so by DEFAULT we ship them untransformed. A caller
+        # can still opt in to refinement by passing an explicit `attack_engine`.
+        if self.attack_engine is None:
+            return simulated_test_cases
+        return super()._refine_simulated_attacks(simulated_test_cases, purpose)
+
+    async def _a_refine_simulated_attacks(self, simulated_test_cases, purpose):
+        if self.attack_engine is None:
+            return simulated_test_cases
+        return await super()._a_refine_simulated_attacks(
             simulated_test_cases, purpose
         )
 
@@ -298,9 +497,7 @@ class DebugAccess(BaseVulnerability):
         """
         if self.async_mode:
             loop = get_or_create_event_loop()
-            return loop.run_until_complete(
-                self._a_assess_trace(trace=trace)
-            )
+            return loop.run_until_complete(self._a_assess_trace(trace=trace))
 
         self.evaluation_model, self.using_native_model = initialize_model(
             self.evaluation_model
@@ -339,7 +536,6 @@ class DebugAccess(BaseVulnerability):
         self.vulnerable = any(f.outcome == "materialized" for f in findings)
 
         return findings
-
 
     def _get_metric(
         self,

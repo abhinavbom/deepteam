@@ -129,6 +129,7 @@ def _get_owasp_vulnerabilities() -> List[BaseVulnerability]:
                 "debug_mode_bypass",
                 "development_endpoint_access",
                 "administrative_interface_exposure",
+                "configuration_disclosure",
             ]
         ),
         ShellInjection(

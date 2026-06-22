@@ -109,6 +109,7 @@ NIST_CATEGORIES = [
                     "development_endpoint_access",
                     "administrative_interface_exposure",
                     "debug_mode_bypass",
+                    "configuration_disclosure",
                 ]
             ),
         ],

@@ -104,6 +104,7 @@ OWASP_CATEGORIES: List[RiskCategory] = [
                     "permissions_and_roles",
                 ]
             ),
+            DebugAccess(types=["configuration_disclosure"]),
             IntellectualProperty(
                 types=[
                     "patent_disclosure",
