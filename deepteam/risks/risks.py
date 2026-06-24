@@ -76,6 +76,10 @@ def getRiskCategory(
         **{
             unauth: LLMRiskCategories.UNAUTHORIZED_ACCESS for unauth in SSRFType
         },
+        **{
+            unauth: LLMRiskCategories.UNAUTHORIZED_ACCESS
+            for unauth in CrossContextRetrievalType
+        },
     }
 
     return risk_category_map.get(

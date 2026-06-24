@@ -330,7 +330,9 @@ MITRE_CATEGORIES = [
             PromptInjection(weight=2),
         ],
         vulnerabilities=[
-            CrossContextRetrieval(types=["tenant", "user", "role"]),
+            CrossContextRetrieval(
+                types=["tenant", "user", "role", "aggregation"]
+            ),
             PIILeakage(types=["session_leak", "social_manipulation"]),
             PromptLeakage(types=["permissions_and_roles"]),
         ],
