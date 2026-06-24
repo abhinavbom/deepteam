@@ -80,6 +80,10 @@ def getRiskCategory(
             unauth: LLMRiskCategories.UNAUTHORIZED_ACCESS
             for unauth in CrossContextRetrievalType
         },
+        **{
+            iiac: LLMRiskCategories.UNAUTHORIZED_ACCESS
+            for iiac in InsecureInterAgentCommunicationType
+        },
     }
 
     return risk_category_map.get(

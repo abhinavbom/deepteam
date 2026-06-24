@@ -28,7 +28,10 @@ from deepteam.trace_scanner.schema import BatchFinding
 from deepteam.trace_scanner import TraceScanner
 
 InsecureInterAgentCommunicationLiteral = Literal[
-    "message_spoofing", "message_injection", "agent_in_the_middle"
+    "message_spoofing",
+    "message_injection",
+    "agent_in_the_middle",
+    "message_replay",
 ]
 
 
@@ -206,7 +209,7 @@ class InsecureInterAgentCommunication(BaseVulnerability):
             self.simulator_model
         )
 
-        self.purpose = purpose
+        self.purpose = purpose if purpose is not None else self.purpose
 
         templates = dict()
         simulated_test_cases: List[RTTestCase] = []
@@ -248,7 +251,9 @@ class InsecureInterAgentCommunication(BaseVulnerability):
                 ]
             )
 
-        return self._refine_simulated_attacks(simulated_test_cases, purpose)
+        return self._refine_simulated_attacks(
+            simulated_test_cases, self.purpose
+        )
 
     async def a_simulate_attacks(
         self,
@@ -260,7 +265,7 @@ class InsecureInterAgentCommunication(BaseVulnerability):
             self.simulator_model
         )
 
-        self.purpose = purpose
+        self.purpose = purpose if purpose is not None else self.purpose
 
         templates = dict()
         simulated_test_cases: List[RTTestCase] = []
@@ -305,7 +310,7 @@ class InsecureInterAgentCommunication(BaseVulnerability):
             )
 
         return await self._a_refine_simulated_attacks(
-            simulated_test_cases, purpose
+            simulated_test_cases, self.purpose
         )
 
     def _assess_trace(
@@ -317,9 +322,7 @@ class InsecureInterAgentCommunication(BaseVulnerability):
         """
         if self.async_mode:
             loop = get_or_create_event_loop()
-            return loop.run_until_complete(
-                self._a_assess_trace(trace=trace)
-            )
+            return loop.run_until_complete(self._a_assess_trace(trace=trace))
 
         self.evaluation_model, self.using_native_model = initialize_model(
             self.evaluation_model
@@ -358,7 +361,6 @@ class InsecureInterAgentCommunication(BaseVulnerability):
         self.vulnerable = any(f.outcome == "materialized" for f in findings)
 
         return findings
-
 
     def _get_metric(
         self,

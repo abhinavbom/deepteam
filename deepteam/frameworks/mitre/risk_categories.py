@@ -493,6 +493,7 @@ MITRE_CATEGORIES = [
                     "message_injection",
                     "message_spoofing",
                     "agent_in_the_middle",
+                    "message_replay",
                 ]
             ),
             ExternalSystemAbuse(

@@ -335,6 +335,7 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
                     "agent_in_the_middle",
                     "message_injection",
                     "message_spoofing",
+                    "message_replay",
                 ]
             ),
             AgentIdentityAbuse(
@@ -377,7 +378,11 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
                 ]
             ),
             InsecureInterAgentCommunication(
-                types=["message_injection", "agent_in_the_middle"]
+                types=[
+                    "message_injection",
+                    "agent_in_the_middle",
+                    "message_replay",
+                ]
             ),
             ExcessiveAgency(types=["functionality", "autonomy"]),
             Misinformation(types=["factual_errors", "unsupported_claims"]),
