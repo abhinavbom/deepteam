@@ -76,6 +76,10 @@ def getRiskCategory(
         **{
             unauth: LLMRiskCategories.UNAUTHORIZED_ACCESS for unauth in SSRFType
         },
+        **{
+            indirect: LLMRiskCategories.UNAUTHORIZED_ACCESS
+            for indirect in IndirectInstructionType
+        },
     }
 
     return risk_category_map.get(

@@ -91,6 +91,8 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
                     "document_embedded_instructions",
                     "rag_injection",
                     "tool_output_injection",
+                    "user_targeted_poisoning",
+                    "payload_splitting",
                 ]
             ),
         ],
@@ -294,6 +296,8 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
                     "tool_output_injection",
                     "document_embedded_instructions",
                     "cross_context_injection",
+                    "user_targeted_poisoning",
+                    "payload_splitting",
                 ]
             ),
             CrossContextRetrieval(types=["tenant", "user", "role"]),
@@ -403,6 +407,7 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
                 types=["agent_impersonation", "identity_inheritance"]
             ),
             PIILeakage(types=["social_manipulation"]),
+            IndirectInstruction(types=["user_targeted_poisoning"]),
         ],
     ),
     RiskCategory(
