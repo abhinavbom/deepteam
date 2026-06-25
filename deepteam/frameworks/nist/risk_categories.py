@@ -346,7 +346,9 @@ NIST_CATEGORIES = [
                     "redaction_bypass",
                 ]
             ),
-            CrossContextRetrieval(types=["tenant", "user", "role"]),
+            CrossContextRetrieval(
+                types=["tenant", "user", "role", "aggregation"]
+            ),
         ],
     ),
     RiskCategory(

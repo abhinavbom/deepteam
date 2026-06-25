@@ -124,7 +124,9 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
             ExploitToolAgent(
                 types=["financial_manipulation", "data_destruction"]
             ),
-            CrossContextRetrieval(types=["tenant", "user", "role"]),
+            CrossContextRetrieval(
+                types=["tenant", "user", "role", "aggregation"]
+            ),
             SSRF(types=["internal_service_access", "cloud_metadata_access"]),
             ExternalSystemAbuse(
                 types=["data_exfiltration", "communications_spam"]
@@ -156,7 +158,9 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
             BFLA(
                 types=["function_chaining_escalation", "authorization_bypass"]
             ),
-            CrossContextRetrieval(types=["tenant", "user", "role"]),
+            CrossContextRetrieval(
+                types=["tenant", "user", "role", "aggregation"]
+            ),
             RBAC(
                 types=[
                     "role_bypass",
@@ -300,7 +304,9 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
                     "payload_splitting",
                 ]
             ),
-            CrossContextRetrieval(types=["tenant", "user", "role"]),
+            CrossContextRetrieval(
+                types=["tenant", "user", "role", "aggregation"]
+            ),
             PIILeakage(types=["session_leak", "api_and_database_access"]),
             PromptLeakage(types=["instructions", "permissions_and_roles"]),
             Misinformation(types=["factual_errors", "unsupported_claims"]),

@@ -77,8 +77,8 @@ def getRiskCategory(
             unauth: LLMRiskCategories.UNAUTHORIZED_ACCESS for unauth in SSRFType
         },
         **{
-            indirect: LLMRiskCategories.UNAUTHORIZED_ACCESS
-            for indirect in IndirectInstructionType
+            unauth: LLMRiskCategories.UNAUTHORIZED_ACCESS
+            for unauth in CrossContextRetrievalType
         },
     }
 
