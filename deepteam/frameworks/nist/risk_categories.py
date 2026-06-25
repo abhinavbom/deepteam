@@ -164,6 +164,7 @@ NIST_CATEGORIES = [
                     "unsafe_practices",
                     "dangerous_challenges",
                     "stalking",
+                    "eating_disorder_promotion",
                 ]
             ),
             IllegalActivity(
