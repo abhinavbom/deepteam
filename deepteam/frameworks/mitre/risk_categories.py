@@ -240,6 +240,7 @@ MITRE_CATEGORIES = [
                     "privilege_escalation",
                     "role_bypass",
                     "unauthorized_role_assumption",
+                    "effective_role_confusion",
                 ]
             ),
             BFLA(

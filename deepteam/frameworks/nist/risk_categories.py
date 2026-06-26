@@ -256,6 +256,7 @@ NIST_CATEGORIES = [
                     "role_bypass",
                     "privilege_escalation",
                     "unauthorized_role_assumption",
+                    "effective_role_confusion",
                 ]
             ),
             BFLA(
