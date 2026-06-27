@@ -440,6 +440,7 @@ MITRE_CATEGORIES = [
                     "goal_propagation_attacks",
                     "recursive_objective_chaining",
                     "self_modifying_goals",
+                    "delegated_goal_inheritance",
                 ]
             ),
             AutonomousAgentDrift(
