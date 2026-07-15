@@ -30,12 +30,13 @@ RecursiveHijackingLiteralType = Literal[
     "self_modifying_goals",
     "recursive_objective_chaining",
     "goal_propagation_attacks",
+    "delegated_goal_inheritance",
 ]
 
 
 class RecursiveHijacking(BaseVulnerability):
     name: str = "Recursive Hijacking"
-    description = "Recursive subversion of the AI's objectives through self-modifying goals, objective chaining, or goal propagation attacks."
+    description = "Recursive subversion of the AI's objectives through self-modifying goals, objective chaining, goal propagation attacks, or delegated goal inheritance across sub-tasks and handoffs."
     ALLOWED_TYPES = [type.value for type in RecursiveHijackingType]
     category = "Agentic"
 
@@ -192,7 +193,10 @@ class RecursiveHijacking(BaseVulnerability):
             self.simulator_model
         )
 
-        self.purpose = purpose
+        # Resolve, don't clobber: an explicit method argument wins, otherwise keep
+        # the constructor-level purpose (so RecursiveHijacking(purpose=...) grounds
+        # generation AND the judge, as the docs promise).
+        self.purpose = purpose if purpose is not None else self.purpose
 
         templates = dict()
         simulated_test_cases: List[RTTestCase] = []
@@ -234,7 +238,9 @@ class RecursiveHijacking(BaseVulnerability):
                 ]
             )
 
-        return self._refine_simulated_attacks(simulated_test_cases, purpose)
+        return self._refine_simulated_attacks(
+            simulated_test_cases, self.purpose
+        )
 
     async def a_simulate_attacks(
         self,
@@ -246,7 +252,8 @@ class RecursiveHijacking(BaseVulnerability):
             self.simulator_model
         )
 
-        self.purpose = purpose
+        # Resolve, don't clobber (see simulate_attacks).
+        self.purpose = purpose if purpose is not None else self.purpose
 
         templates = dict()
         simulated_test_cases: List[RTTestCase] = []
@@ -291,8 +298,33 @@ class RecursiveHijacking(BaseVulnerability):
             )
 
         return await self._a_refine_simulated_attacks(
-            simulated_test_cases, purpose
+            simulated_test_cases, self.purpose
         )
+
+    def _refine_simulated_attacks(self, simulated_test_cases, purpose):
+        """Skip the generic AttackEngine refinement for this lane.
+
+        Recursive hijacking attacks are inherently MULTI-STEP: their potency comes
+        from a gradual, non-announced drift across several individually-reasonable
+        steps. The shared transform prompt is hard-constrained to a 1-2 sentence,
+        overtly-harmful rewrite, and those "CRITICAL CONSTRAINTS (DO NOT VIOLATE)"
+        outrank any appended generation guidelines — so generic refinement
+        structurally collapses the drift into a short overt attack. The enhanced
+        baseline template already emits the camouflaged, multi-step prompt that
+        refinement is meant to produce, so we keep it intact. A caller that
+        explicitly supplies an `attack_engine` opts back in and is honored."""
+        if self.attack_engine is not None:
+            return self.attack_engine.refine(
+                simulated_test_cases, purpose=purpose
+            )
+        return simulated_test_cases
+
+    async def _a_refine_simulated_attacks(self, simulated_test_cases, purpose):
+        if self.attack_engine is not None:
+            return await self.attack_engine.a_refine(
+                simulated_test_cases, purpose=purpose
+            )
+        return simulated_test_cases
 
     def _assess_trace(
         self,
@@ -303,9 +335,7 @@ class RecursiveHijacking(BaseVulnerability):
         """
         if self.async_mode:
             loop = get_or_create_event_loop()
-            return loop.run_until_complete(
-                self._a_assess_trace(trace=trace)
-            )
+            return loop.run_until_complete(self._a_assess_trace(trace=trace))
 
         self.evaluation_model, self.using_native_model = initialize_model(
             self.evaluation_model
@@ -344,7 +374,6 @@ class RecursiveHijacking(BaseVulnerability):
         self.vulnerable = any(f.outcome == "materialized" for f in findings)
 
         return findings
-
 
     def _get_metric(
         self,
