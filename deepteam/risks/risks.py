@@ -81,6 +81,8 @@ def getRiskCategory(
             for unauth in CrossContextRetrievalType
         },
         **{
+            iiac: LLMRiskCategories.UNAUTHORIZED_ACCESS
+            for iiac in InsecureInterAgentCommunicationType
             unauth: LLMRiskCategories.UNAUTHORIZED_ACCESS
             for unauth in RecursiveHijackingType
         },

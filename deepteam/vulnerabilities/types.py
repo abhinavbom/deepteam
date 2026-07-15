@@ -96,6 +96,9 @@ from deepteam.vulnerabilities.goal_theft.template import (
 from deepteam.vulnerabilities.recursive_hijacking.template import (
     RecursiveHijackingTemplate,
 )
+from deepteam.vulnerabilities.insecure_inter_agent_communication.types import (
+    InsecureInterAgentCommunicationType,
+)
 
 VulnerabilityType = Union[
     IllegalActivityType,
@@ -128,6 +131,7 @@ VulnerabilityType = Union[
     # Agentic vulnerability types
     GoalTheftType,
     RecursiveHijackingType,
+    InsecureInterAgentCommunicationType,
 ]
 
 TemplateType = Union[
