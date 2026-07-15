@@ -18,6 +18,11 @@ from deepteam.test_case import RTTestCase
 from deepteam.attacks.attack_simulator.schema import SyntheticDataList
 from deepteam.risks import getRiskCategory
 from .template import RBACTemplate
+from .quality import (
+    candidate_count,
+    select_quality_attacks,
+    reconcile_refined,
+)
 from deepeval.tracing.types import Trace
 from deepteam.trace_scanner.schema import BatchFinding
 from deepteam.trace_scanner import TraceScanner
@@ -26,12 +31,13 @@ RBACLiteral = Literal[
     "role_bypass",
     "privilege_escalation",
     "unauthorized_role_assumption",
+    "effective_role_confusion",
 ]
 
 
 class RBAC(BaseVulnerability):
     name: str = "RBAC"
-    description = "Role-Based Access Control bypass enabling role restriction circumvention, privilege escalation, or unauthorized role assumption without proper validation."
+    description = "Role-Based Access Control bypass enabling role restriction circumvention, privilege escalation, unauthorized role assumption, or confused-deputy execution under the agent's own privileged identity without proper validation."
     ALLOWED_TYPES = [type.value for type in RBACType]
     category = "Security"
 
@@ -188,7 +194,10 @@ class RBAC(BaseVulnerability):
             self.simulator_model
         )
 
-        self.purpose = purpose
+        # Preserve a constructor-provided purpose when called without one
+        # (None must not clobber it).
+        if purpose is not None:
+            self.purpose = purpose
 
         templates = dict()
         simulated_test_cases: List[RTTestCase] = []
@@ -197,7 +206,9 @@ class RBAC(BaseVulnerability):
             templates[type] = templates.get(type, [])
             templates[type].append(
                 RBACTemplate.generate_baseline_attacks(
-                    type, attacks_per_vulnerability_type, self.purpose
+                    type,
+                    candidate_count(attacks_per_vulnerability_type),
+                    self.purpose,
                 )
             )
 
@@ -216,8 +227,18 @@ class RBAC(BaseVulnerability):
                         local_attacks = [item.input for item in res.data]
                     except TypeError:
                         res = self.simulator_model.generate(prompt)
-                        data = trimAndLoadJson(res)
-                        local_attacks = [item["input"] for item in data["data"]]
+                        try:
+                            data = trimAndLoadJson(res)
+                            local_attacks = data.get("data", [])
+                        except Exception:
+                            # A flaky simulator can emit unparseable JSON; let
+                            # the curated floor backfill instead of crashing.
+                            local_attacks = []
+
+            # Curated-or-better: gate generations, fall back to the vetted floor.
+            local_attacks = select_quality_attacks(
+                type, local_attacks, attacks_per_vulnerability_type
+            )
 
             simulated_test_cases.extend(
                 [
@@ -230,7 +251,10 @@ class RBAC(BaseVulnerability):
                 ]
             )
 
-        return self._refine_simulated_attacks(simulated_test_cases, purpose)
+        refined = self._refine_simulated_attacks(
+            simulated_test_cases, self.purpose
+        )
+        return reconcile_refined(simulated_test_cases, refined)
 
     async def a_simulate_attacks(
         self,
@@ -242,7 +266,10 @@ class RBAC(BaseVulnerability):
             self.simulator_model
         )
 
-        self.purpose = purpose
+        # Preserve a constructor-provided purpose when called without one
+        # (None must not clobber it).
+        if purpose is not None:
+            self.purpose = purpose
 
         templates = dict()
         simulated_test_cases: List[RTTestCase] = []
@@ -251,7 +278,9 @@ class RBAC(BaseVulnerability):
             templates[type] = templates.get(type, [])
             templates[type].append(
                 RBACTemplate.generate_baseline_attacks(
-                    type, attacks_per_vulnerability_type, self.purpose
+                    type,
+                    candidate_count(attacks_per_vulnerability_type),
+                    self.purpose,
                 )
             )
 
@@ -272,8 +301,18 @@ class RBAC(BaseVulnerability):
                         local_attacks = [item.input for item in res.data]
                     except TypeError:
                         res = await self.simulator_model.a_generate(prompt)
-                        data = trimAndLoadJson(res)
-                        local_attacks = [item["input"] for item in data["data"]]
+                        try:
+                            data = trimAndLoadJson(res)
+                            local_attacks = data.get("data", [])
+                        except Exception:
+                            # A flaky simulator can emit unparseable JSON; let
+                            # the curated floor backfill instead of crashing.
+                            local_attacks = []
+
+            # Curated-or-better: gate generations, fall back to the vetted floor.
+            local_attacks = select_quality_attacks(
+                type, local_attacks, attacks_per_vulnerability_type
+            )
 
             simulated_test_cases.extend(
                 [
@@ -286,7 +325,34 @@ class RBAC(BaseVulnerability):
                 ]
             )
 
-        return await self._a_refine_simulated_attacks(
+        refined = await self._a_refine_simulated_attacks(
+            simulated_test_cases, self.purpose
+        )
+        return reconcile_refined(simulated_test_cases, refined)
+
+    def _refine_simulated_attacks(self, simulated_test_cases, purpose):
+        # The baseline prompts are already evasive, on-lane, single-subject and
+        # gated by quality.select_quality_attacks. In STANDALONE assess()
+        # (attack_engine is None) we skip the generic AttackEngine transform
+        # entirely and ship the gated curated-or-better set as-is, so the output
+        # is fully deterministic. When an engine IS present — passed explicitly,
+        # OR injected by red_team()/RedTeamer (attack_simulator copies its engine
+        # onto each vulnerability) — we DO refine; but the caller wraps this in
+        # reconcile_refined(), which keeps a refined variant only when it stays
+        # banned-literal-free, on-lane, and scores at least as high as the gated
+        # original, else falls back to the gated prompt. So the quality floor
+        # holds in BOTH paths; the override only adds determinism for standalone.
+        if self.attack_engine is None:
+            return simulated_test_cases
+        return super()._refine_simulated_attacks(simulated_test_cases, purpose)
+
+    async def _a_refine_simulated_attacks(self, simulated_test_cases, purpose):
+        # See _refine_simulated_attacks: standalone (no engine) ships the gated
+        # set as-is; an engine (explicit or red_team-injected) refines, guarded by
+        # reconcile_refined() so the quality floor holds either way.
+        if self.attack_engine is None:
+            return simulated_test_cases
+        return await super()._a_refine_simulated_attacks(
             simulated_test_cases, purpose
         )
 
@@ -299,9 +365,7 @@ class RBAC(BaseVulnerability):
         """
         if self.async_mode:
             loop = get_or_create_event_loop()
-            return loop.run_until_complete(
-                self._a_assess_trace(trace=trace)
-            )
+            return loop.run_until_complete(self._a_assess_trace(trace=trace))
 
         self.evaluation_model, self.using_native_model = initialize_model(
             self.evaluation_model
@@ -340,7 +404,6 @@ class RBAC(BaseVulnerability):
         self.vulnerable = any(f.outcome == "materialized" for f in findings)
 
         return findings
-
 
     def _get_metric(
         self,

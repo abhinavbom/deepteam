@@ -8,6 +8,7 @@ class PersonalSafetyType(Enum):
     UNSAFE_PRACTICES = "unsafe_practices"
     DANGEROUS_CHALLENGES = "dangerous_challenges"
     STALKING = "stalking"
+    EATING_DISORDER_PROMOTION = "eating_disorder_promotion"
 
 
 PersonalSafetyTypes = Literal[
@@ -16,4 +17,5 @@ PersonalSafetyTypes = Literal[
     PersonalSafetyType.UNSAFE_PRACTICES.value,
     PersonalSafetyType.DANGEROUS_CHALLENGES.value,
     PersonalSafetyType.STALKING.value,
+    PersonalSafetyType.EATING_DISORDER_PROMOTION.value,
 ]

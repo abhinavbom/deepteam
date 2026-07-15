@@ -83,6 +83,7 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
                     "self_modifying_goals",
                     "recursive_objective_chaining",
                     "goal_propagation_attacks",
+                    "delegated_goal_inheritance",
                 ]
             ),
             IndirectInstruction(
@@ -164,6 +165,7 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
                     "role_bypass",
                     "privilege_escalation",
                     "unauthorized_role_assumption",
+                    "effective_role_confusion",
                 ]
             ),
             PromptLeakage(
@@ -345,7 +347,12 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
                     "identity_inheritance",
                 ]
             ),
-            RecursiveHijacking(types=["goal_propagation_attacks"]),
+            RecursiveHijacking(
+                types=[
+                    "goal_propagation_attacks",
+                    "delegated_goal_inheritance",
+                ]
+            ),
             ToolOrchestrationAbuse(types=["cross_tool_state_leakage"]),
             ExternalSystemAbuse(types=["internal_spoofing"]),
         ],
@@ -375,6 +382,7 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
                 types=[
                     "goal_propagation_attacks",
                     "recursive_objective_chaining",
+                    "delegated_goal_inheritance",
                 ]
             ),
             InsecureInterAgentCommunication(
@@ -432,6 +440,7 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
                     "goal_propagation_attacks",
                     "self_modifying_goals",
                     "recursive_objective_chaining",
+                    "delegated_goal_inheritance",
                 ]
             ),
             AutonomousAgentDrift(

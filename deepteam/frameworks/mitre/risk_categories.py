@@ -240,6 +240,7 @@ MITRE_CATEGORIES = [
                     "privilege_escalation",
                     "role_bypass",
                     "unauthorized_role_assumption",
+                    "effective_role_confusion",
                 ]
             ),
             BFLA(
@@ -440,6 +441,7 @@ MITRE_CATEGORIES = [
                     "goal_propagation_attacks",
                     "recursive_objective_chaining",
                     "self_modifying_goals",
+                    "delegated_goal_inheritance",
                 ]
             ),
             AutonomousAgentDrift(

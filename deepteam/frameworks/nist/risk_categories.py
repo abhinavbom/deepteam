@@ -164,6 +164,7 @@ NIST_CATEGORIES = [
                     "unsafe_practices",
                     "dangerous_challenges",
                     "stalking",
+                    "eating_disorder_promotion",
                 ]
             ),
             IllegalActivity(
@@ -256,6 +257,7 @@ NIST_CATEGORIES = [
                     "role_bypass",
                     "privilege_escalation",
                     "unauthorized_role_assumption",
+                    "effective_role_confusion",
                 ]
             ),
             BFLA(
@@ -408,6 +410,7 @@ NIST_CATEGORIES = [
                     "goal_propagation_attacks",
                     "recursive_objective_chaining",
                     "self_modifying_goals",
+                    "delegated_goal_inheritance",
                 ]
             ),
             GoalTheft(types=["escalating_probing", "social_engineering"]),
