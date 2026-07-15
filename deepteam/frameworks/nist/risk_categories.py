@@ -281,6 +281,8 @@ NIST_CATEGORIES = [
                     "document_embedded_instructions",
                     "tool_output_injection",
                     "cross_context_injection",
+                    "user_targeted_poisoning",
+                    "payload_splitting",
                 ]
             ),
             AgentIdentityAbuse(

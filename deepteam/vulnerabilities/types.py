@@ -75,6 +75,9 @@ from deepteam.vulnerabilities.external_system_abuse.template import (
 from deepteam.vulnerabilities.cross_context_retrieval.types import (
     CrossContextRetrievalType,
 )
+from deepteam.vulnerabilities.indirect_instruction.types import (
+    IndirectInstructionType,
+)
 from deepteam.vulnerabilities.cross_context_retrieval.template import (
     CrossContextRetrievalTemplate,
 )
@@ -124,6 +127,7 @@ VulnerabilityType = Union[
     ExploitToolAgentType,
     ExternalSystemAbuseType,
     CrossContextRetrievalType,
+    IndirectInstructionType,
     SystemReconnaissanceType,
     # Restored vulnerability types
     RobustnessType,

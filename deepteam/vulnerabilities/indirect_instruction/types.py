@@ -7,6 +7,8 @@ class IndirectInstructionType(Enum):
     TOOL_OUTPUT_INJECTION = "tool_output_injection"
     DOCUMENT_EMBEDDED_INSTRUCTIONS = "document_embedded_instructions"
     CROSS_CONTENT_INJECTION = "cross_context_injection"
+    USER_TARGETED_POISONING = "user_targeted_poisoning"
+    PAYLOAD_SPLITTING = "payload_splitting"
 
 
 IndirectInstructionTypes = Literal[
@@ -14,4 +16,6 @@ IndirectInstructionTypes = Literal[
     IndirectInstructionType.TOOL_OUTPUT_INJECTION.value,
     IndirectInstructionType.DOCUMENT_EMBEDDED_INSTRUCTIONS.value,
     IndirectInstructionType.CROSS_CONTENT_INJECTION.value,
+    IndirectInstructionType.USER_TARGETED_POISONING.value,
+    IndirectInstructionType.PAYLOAD_SPLITTING.value,
 ]

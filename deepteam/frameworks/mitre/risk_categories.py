@@ -141,6 +141,8 @@ MITRE_CATEGORIES = [
                     "document_embedded_instructions",
                     "tool_output_injection",
                     "cross_context_injection",
+                    "user_targeted_poisoning",
+                    "payload_splitting",
                 ]
             ),
             DebugAccess(
@@ -367,7 +369,11 @@ MITRE_CATEGORIES = [
                 ]
             ),
             IndirectInstruction(
-                types=["rag_injection", "document_embedded_instructions"]
+                types=[
+                    "rag_injection",
+                    "document_embedded_instructions",
+                    "payload_splitting",
+                ]
             ),
             Robustness(types=["hijacking"]),
         ],
