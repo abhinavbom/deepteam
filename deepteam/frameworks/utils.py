@@ -122,6 +122,7 @@ def _get_owasp_vulnerabilities() -> List[BaseVulnerability]:
                 "role_bypass",
                 "privilege_escalation",
                 "unauthorized_role_assumption",
+                "effective_role_confusion",
             ]
         ),
         DebugAccess(

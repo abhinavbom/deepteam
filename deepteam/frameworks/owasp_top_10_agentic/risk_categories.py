@@ -165,6 +165,7 @@ OWASP_ASI_CATEGORIES: List[RiskCategory] = [
                     "role_bypass",
                     "privilege_escalation",
                     "unauthorized_role_assumption",
+                    "effective_role_confusion",
                 ]
             ),
             PromptLeakage(

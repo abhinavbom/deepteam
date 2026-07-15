@@ -237,7 +237,13 @@ OWASP_CATEGORIES: List[RiskCategory] = [
         ],
         vulnerabilities=[
             ExcessiveAgency(types=["functionality", "permissions", "autonomy"]),
-            RBAC(types=["role_bypass", "privilege_escalation"]),
+            RBAC(
+                types=[
+                    "role_bypass",
+                    "privilege_escalation",
+                    "effective_role_confusion",
+                ]
+            ),
             BFLA(types=["authorization_bypass", "function_bypass"]),
             BOLA(types=["object_access_bypass", "cross_customer_access"]),
             CustomVulnerability(
